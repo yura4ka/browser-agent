@@ -1,8 +1,13 @@
-# Bun Project Agent Instructions
+# Agent Rules
+
+- Use `zod` for schema validation
 
 Before finishing work, always run type and lint checks.
 - Run `bunx tsc --noEmit`
 - Run `bun run lint`
+- Run `bun run format`
+
+## Bun
 
 Default to using Bun instead of Node.js.
 
@@ -14,14 +19,14 @@ Default to using Bun instead of Node.js.
 - Use `bunx <package> <command>` instead of `npx <package> <command>`
 - Bun automatically loads .env, so don't use dotenv.
 
-## APIs
+### APIs
 
 - `bun:sqlite` for SQLite. Don't use `better-sqlite3`.
 - `WebSocket` is built-in. Don't use `ws`.
 - Prefer `Bun.file` over `node:fs`'s readFile/writeFile
 - Bun.$`ls` instead of execa.
 
-## Testing
+### Testing
 
 Use `bun test` to run tests.
 
@@ -31,4 +36,41 @@ import { test, expect } from "bun:test";
 test("hello world", () => {
   expect(1).toBe(1);
 });
+```
+
+## Result Type
+
+Use `Result<T, E>` from `src/core/Result.ts` for expected/recoverable failures.
+`Result` can be used as a type and as an object. **DO NOT** import both
+
+```ts
+import { Result } from "@/core/Result";
+
+function getProviderModels(providerId: string): Result<string[]> {
+  if (providerId.length === 0) {
+    return Result.fromCanonical("Provider id is required", "Pass a non-empty id");
+  }
+
+  return Result.Ok(["model-a", "model-b"]);
+}
+```
+
+Prefer narrowing with `Result.isOk`/`Result.isErr`:
+
+```ts
+const result = getProviderModels(input);
+
+if (Result.isOk(result)) {
+  console.log(result.value);
+} else {
+  console.error(result.error.message);
+}
+```
+
+Working with promises:
+```ts
+const result = await Result.fromPromise(fetch());
+if (Result.isErr(result)) {
+  return Result.fromCanonical("Fetch error");
+}
 ```
