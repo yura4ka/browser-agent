@@ -1,12 +1,8 @@
 import type { UserConfig } from "@/core/config";
-import type { Result } from "@/core/Result";
-import type { ModelDescriptor } from "./types";
+import type { ModelDescriptor, ProviderDescriptor } from "./types";
 
-export interface LLMProvider {
-  readonly id: string;
-  readonly displayName: string;
-  readonly connectionResult: Result<void> | null;
-
+export interface LLMProvider extends ProviderDescriptor {
   init(config: UserConfig): Promise<void>;
   getModels(): ModelDescriptor[];
+  getDescriptor(): ProviderDescriptor;
 }

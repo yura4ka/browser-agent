@@ -9,8 +9,11 @@ import {
 } from "./types";
 
 export class OpenRouterProvider extends OpenAICompatibleProvider {
-  private _connectionResult: Result<void> | null = null;
   private _models: ModelDescriptor[] = [];
+
+  override get completionUrl(): string {
+    return "https://openrouter.ai/api/v1/chat/completions";
+  }
 
   override get id(): string {
     return "openrouter";
@@ -18,10 +21,6 @@ export class OpenRouterProvider extends OpenAICompatibleProvider {
 
   override get displayName(): string {
     return "OpenRouter";
-  }
-
-  override get connectionResult(): Result<void> | null {
-    return this._connectionResult;
   }
 
   override async init(config: UserConfig): Promise<void> {

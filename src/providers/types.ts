@@ -1,3 +1,11 @@
+import type { Result } from "@/core/Result";
+
+export type ProviderDescriptor = {
+  readonly id: string;
+  readonly displayName: string;
+  readonly connectionResult: Result<void> | null;
+};
+
 export type ModelDescriptor = {
   providerId: string;
   id: string;

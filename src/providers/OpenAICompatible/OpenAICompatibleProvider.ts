@@ -1,28 +1,26 @@
 import type { UserConfig } from "@/core/config";
 import type { Result } from "@/core/Result";
 import type { LLMProvider } from "./../LLMProvider";
-import type { ModelDescriptor } from "../types";
+import type { ModelDescriptor, ProviderDescriptor } from "../types";
 
-export class OpenAICompatibleProvider implements LLMProvider {
-  get id(): string {
-    throw new Error("OpenAICompatibleProvider.id must be overridden");
-  }
+export abstract class OpenAICompatibleProvider implements LLMProvider {
+  protected _connectionResult: Result<void> | null = null;
+  protected abstract get completionUrl(): string;
 
-  get displayName(): string {
-    throw new Error("OpenAICompatibleProvider.displayName must be overridden");
-  }
+  abstract get id(): string;
+  abstract get displayName(): string;
+  abstract init(_config: UserConfig): Promise<void>;
+  abstract getModels(): ModelDescriptor[];
 
   get connectionResult(): Result<void> | null {
-    throw new Error(
-      "OpenAICompatibleProvider.connectionResult must be overridden",
-    );
+    return this._connectionResult;
   }
 
-  async init(_config: UserConfig): Promise<void> {
-    throw new Error("OpenAICompatibleProvider.init must be overridden");
-  }
-
-  getModels(): ModelDescriptor[] {
-    throw new Error("OpenAICompatibleProvider.getModels must be overridden");
+  getDescriptor(): ProviderDescriptor {
+    return {
+      id: this.id,
+      displayName: this.displayName,
+      connectionResult: this.connectionResult,
+    };
   }
 }
