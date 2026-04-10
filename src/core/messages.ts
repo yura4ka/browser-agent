@@ -1,5 +1,3 @@
-import type { ToolCall } from "@/tools/types";
-
 export type CanonicalMessage =
   | SystemMessage
   | UserMessage
@@ -22,11 +20,17 @@ export type AssistantMessage = {
   toolCalls?: ToolCall[];
 };
 
+export type ToolCall = {
+  callId: string;
+  toolName: string;
+  args: unknown;
+};
+
 export type ToolResultMessage = {
   role: "tool";
   toolCallId: string;
   toolName: string;
-  content: string;
+  content: MessagePart;
 };
 
 export type MessagePart =

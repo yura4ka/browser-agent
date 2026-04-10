@@ -25,3 +25,29 @@ export type OpenRouterModel = z.infer<typeof openRouterModelSchema>;
 export type OpenRouterModelsResponse = z.infer<
   typeof openRouterModelsResponseSchema
 >;
+
+export type OpenRouterChunk = {
+  id?: string;
+  model?: string;
+  error?: { message?: string; code?: string | number };
+  usage?: unknown;
+  choices?: Array<{
+    index?: number;
+    finish_reason?: string | null;
+    delta?: {
+      role?: "assistant";
+      content?: string;
+      tool_calls?: OpenRouterToolCallDelta[];
+    };
+  }>;
+};
+
+export type OpenRouterToolCallDelta = {
+  index?: number;
+  id?: string;
+  type?: "function";
+  function?: {
+    name?: string;
+    arguments?: string;
+  };
+};

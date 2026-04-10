@@ -16,6 +16,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "eventsource-parser": "^3.0.6",
     "zod": "^4.3.6"
   }
 }

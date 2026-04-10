@@ -19,7 +19,7 @@ export class ProviderManager {
 
   async initAll(config: UserConfig): Promise<void> {
     await Promise.all(
-      Array.from(this._providers.values()).map((p) => p.init(config)),
+      Array.from(this._providers.values()).map((p) => p.init({ config })),
     );
   }
 
