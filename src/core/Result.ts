@@ -57,6 +57,13 @@ export const Result = {
       .then((value) => Result.Ok(value))
       .catch((error) => Result.Err(error));
   },
+  wrap<T>(fn: () => T): Result<T, unknown> {
+    try {
+      return Result.Ok(fn());
+    } catch (error) {
+      return Result.Err(error);
+    }
+  },
   isOk<T, E>(result: Result<T, E>): result is ResultOk<T> {
     return result.ok;
   },

@@ -6,22 +6,15 @@ const envSchema = z
   })
   .strip();
 
-const searchEngineSchema = z
-  .object({
-    name: z.string(),
-    url: z.string(),
-  })
-  .strip();
-
 const preferencesSchema = z
   .object({
-    allowedSearchEngines: z.array(searchEngineSchema).optional(),
-    urlAllowList: z.array(z.string()).optional(),
+    allowedUrls: z.array(z.string()).default([]),
+    autoAllowAllTabs: z.boolean().default(false),
   })
   .strip();
 
-type UserPreferences = z.infer<typeof preferencesSchema>;
 type EnvConfig = z.infer<typeof envSchema>;
+type UserPreferences = z.infer<typeof preferencesSchema>;
 
 export type UserConfig = {
   env: EnvConfig;
@@ -29,24 +22,24 @@ export type UserConfig = {
 };
 
 export class ConfigService {
-  private _config: UserConfig | null = null;
+  private config: UserConfig | null = null;
 
   async init(): Promise<void> {
     const envConfig = envSchema.parse(process.env);
     const preferencesConfig = await this.loadPreferences();
 
-    this._config = {
+    this.config = {
       env: envConfig,
       preferences: preferencesConfig,
     };
   }
 
   get(): UserConfig {
-    if (!this._config) {
+    if (!this.config) {
       throw new Error("ConfigService is not initialized. Call init() first.");
     }
 
-    return this._config;
+    return this.config;
   }
 
   private async loadPreferences(): Promise<UserPreferences> {
