@@ -24,7 +24,7 @@ const deps: ProviderDeps = {
     env: {},
     preferences: {
       autoAllowAllTabs: false,
-      urlAllowList: [],
+      allowedUrls: [],
     },
   },
 };

@@ -2,10 +2,10 @@
 
 - Use `zod` for schema validation
 
-Before finishing work, always run type and lint checks.
+Before finishing work, always run type and Biome checks.
 - Run `bunx tsc --noEmit`
-- Run `bun run lint`
-- Run `bun run format`
+- Run `bun run check:write`
+- Run `bun run check`
 
 ## Bun
 

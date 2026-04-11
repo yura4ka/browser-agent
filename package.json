@@ -5,8 +5,10 @@
   "private": true,
   "scripts": {
     "start": "bun run index.ts",
-    "lint": "bunx biome lint .",
-    "format": "bunx biome format --write ."
+    "check": "bunx biome check .",
+    "check:write": "bunx biome check --write .",
+    "lint": "bun run check",
+    "format": "bun run check:write"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
