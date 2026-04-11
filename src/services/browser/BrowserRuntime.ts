@@ -1,5 +1,12 @@
-import { type BrowserContext, chromium, type Page } from "playwright";
+import {
+  type BrowserContext,
+  chromium,
+  type Locator,
+  type Page,
+} from "playwright";
 import { Result } from "@/core/Result";
+import { resolveLocator } from "./locator/resolveLocator";
+import type { LocatorDef } from "./locator/schema";
 
 export class BrowserRuntime {
   private browserContext: BrowserContext | null = null;
@@ -57,6 +64,10 @@ export class BrowserRuntime {
     }
 
     return Result.Ok(undefined);
+  }
+
+  resolveLocator(page: Page, locator: LocatorDef): Result<Locator> {
+    return resolveLocator(locator, page);
   }
 
   private withHint(error: unknown, hint?: string): string {
