@@ -4,8 +4,8 @@ export type StringOrRegex =
   | { type: "text"; text: string }
   | { type: "regex"; pattern: string; flags?: string };
 
-export const stringOrRegexSchema: z.ZodType<StringOrRegex> =
-  z.discriminatedUnion("type", [
+export const stringOrRegexSchema: z.ZodType<StringOrRegex> = z
+  .discriminatedUnion("type", [
     z.object({ type: z.literal("text"), text: z.string() }).strict(),
     z
       .object({
@@ -34,7 +34,9 @@ export const stringOrRegexSchema: z.ZodType<StringOrRegex> =
         },
         { message: "Invalid regular expression pattern or flags" },
       ),
-  ]);
+  ])
+  .describe("Text or regex to match.")
+  .register(z.globalRegistry, { id: "StringOrRegExp" });
 
 export function resolveStringOrRegex(input: StringOrRegex): string | RegExp {
   if (input.type === "text") {

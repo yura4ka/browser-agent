@@ -107,8 +107,6 @@ export type LocatorFilterOptions = {
   visible?: boolean;
 };
 
-const stringOrRegex = stringOrRegexSchema.describe("Text or regex to match.");
-
 const defaultOptionsSchema = z
   .object({
     exact: z
@@ -117,7 +115,8 @@ const defaultOptionsSchema = z
       .describe("Exact match (case-sensitive, full string)."),
   })
   .strict()
-  .optional();
+  .optional()
+  .register(z.globalRegistry, { id: "LocatorOptions" });
 
 const roleOptionsSchema = z
   .object({
@@ -137,40 +136,44 @@ const roleOptionsSchema = z
       .int()
       .optional()
       .describe("Match level (for example headings)."),
-    name: stringOrRegex.optional().describe("Accessible name to match."),
+    name: stringOrRegexSchema.optional().describe("Accessible name to match."),
     pressed: z.boolean().optional().describe("Match aria-pressed state."),
     selected: z.boolean().optional().describe("Match aria-selected state."),
   })
   .strict()
   .optional()
-  .describe("Options for role locators.");
+  .describe("Options for role locators.")
+  .register(z.globalRegistry, { id: "RoleLocatorOptions" });
 
 export const locatorSchema: z.ZodType<LocatorDef> = z
   .discriminatedUnion("kind", [
     z
       .object({
         kind: z.literal("altText"),
-        content: stringOrRegex,
+        content: stringOrRegexSchema,
         options: defaultOptionsSchema,
       })
       .strict()
-      .describe("Locate by alt text."),
+      .describe("Locate by alt text.")
+      .register(z.globalRegistry, { id: "AltTextLocator" }),
     z
       .object({
         kind: z.literal("label"),
-        content: stringOrRegex,
+        content: stringOrRegexSchema,
         options: defaultOptionsSchema,
       })
       .strict()
-      .describe("Locate inputs by the associated label."),
+      .describe("Locate inputs by the associated label.")
+      .register(z.globalRegistry, { id: "LabelLocator" }),
     z
       .object({
         kind: z.literal("placeholder"),
-        content: stringOrRegex,
+        content: stringOrRegexSchema,
         options: defaultOptionsSchema,
       })
       .strict()
-      .describe("Locate inputs by placeholder."),
+      .describe("Locate inputs by placeholder.")
+      .register(z.globalRegistry, { id: "PlaceholderLocator" }),
     z
       .object({
         kind: z.literal("role"),
@@ -178,58 +181,66 @@ export const locatorSchema: z.ZodType<LocatorDef> = z
         options: roleOptionsSchema,
       })
       .strict()
-      .describe("Locate by ARIA role and related options."),
+      .describe("Locate by ARIA role and related options.")
+      .register(z.globalRegistry, { id: "RoleLocator" }),
     z
       .object({
         kind: z.literal("text"),
-        content: stringOrRegex,
+        content: stringOrRegexSchema,
         options: defaultOptionsSchema,
       })
       .strict()
-      .describe("Locate by text content."),
+      .describe("Locate by text content.")
+      .register(z.globalRegistry, { id: "TextLocator" }),
     z
       .object({
         kind: z.literal("title"),
-        content: stringOrRegex,
+        content: stringOrRegexSchema,
         options: defaultOptionsSchema,
       })
       .strict()
-      .describe("Locate by title attribute."),
+      .describe("Locate by title attribute.")
+      .register(z.globalRegistry, { id: "TitleLocator" }),
     z
       .object({
         kind: z.literal("selector"),
         selector: z.string().describe("CSS or XPath selector."),
       })
       .strict()
-      .describe("Locate by selector."),
+      .describe("Locate by selector.")
+      .register(z.globalRegistry, { id: "SelectorLocator" }),
     z
       .object({
         kind: z.literal("and"),
         locators: z.lazy(() => z.array(locatorSchema).min(2)),
       })
       .strict()
-      .describe("Matches all of the provided locators."),
+      .describe("Matches all of the provided locators.")
+      .register(z.globalRegistry, { id: "AndLocator" }),
     z
       .object({
         kind: z.literal("or"),
         locators: z.lazy(() => z.array(locatorSchema).min(2)),
       })
       .strict()
-      .describe("Matches any of the provided locators."),
+      .describe("Matches any of the provided locators.")
+      .register(z.globalRegistry, { id: "OrLocator" }),
     z
       .object({
         kind: z.literal("first"),
         locator: z.lazy(() => locatorSchema),
       })
       .strict()
-      .describe("Returns the first matching element."),
+      .describe("Returns the first matching element.")
+      .register(z.globalRegistry, { id: "FirstLocator" }),
     z
       .object({
         kind: z.literal("last"),
         locator: z.lazy(() => locatorSchema),
       })
       .strict()
-      .describe("Returns the last matching element."),
+      .describe("Returns the last matching element.")
+      .register(z.globalRegistry, { id: "LastLocator" }),
     z
       .object({
         kind: z.literal("nth"),
@@ -237,7 +248,8 @@ export const locatorSchema: z.ZodType<LocatorDef> = z
         locator: z.lazy(() => locatorSchema),
       })
       .strict()
-      .describe("Returns the nth matching element."),
+      .describe("Returns the nth matching element.")
+      .register(z.globalRegistry, { id: "NthLocator" }),
     z
       .object({
         kind: z.literal("filter"),
@@ -252,10 +264,10 @@ export const locatorSchema: z.ZodType<LocatorDef> = z
               .lazy(() => locatorSchema)
               .optional()
               .describe("Exclude elements containing this locator."),
-            hasText: stringOrRegex
+            hasText: stringOrRegexSchema
               .optional()
               .describe("Only include elements with matching text."),
-            hasNotText: stringOrRegex
+            hasNotText: stringOrRegexSchema
               .optional()
               .describe("Exclude elements with matching text."),
             visible: z
@@ -263,9 +275,12 @@ export const locatorSchema: z.ZodType<LocatorDef> = z
               .optional()
               .describe("Match only visible or hidden elements."),
           })
-          .strict(),
+          .strict()
+          .register(z.globalRegistry, { id: "LocatorFilterOptions" }),
       })
       .strict()
-      .describe("Filter the locator by options."),
+      .describe("Filter the locator by options.")
+      .register(z.globalRegistry, { id: "FilterLocator" }),
   ])
-  .describe("Input for resolving a Playwright locator.");
+  .describe("Input for resolving a Playwright locator.")
+  .register(z.globalRegistry, { id: "Locator" });
