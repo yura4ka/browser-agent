@@ -7,7 +7,7 @@ export type ProviderIdentity = {
   readonly displayName: string;
 };
 
-export type ProviderContext = {
+export type ProviderDeps = {
   config: UserConfig;
 };
 
@@ -16,15 +16,13 @@ export type ProviderDescriptor = ProviderIdentity & {
 };
 
 export interface ProviderCatalog {
-  discoverModels(
-    context: ProviderContext,
-  ): Promise<Result<ModelDescriptor[] | null>>;
+  discoverModels(deps: ProviderDeps): Promise<Result<ModelDescriptor[] | null>>;
 }
 
 export interface ProviderTransport {
   streamChat(
     request: ChatRequest,
-    context: ProviderContext,
+    deps: ProviderDeps,
     signal?: AbortSignal,
   ): AsyncGenerator<LLMStreamEvent>;
 }
@@ -32,7 +30,7 @@ export interface ProviderTransport {
 export type ModelDescriptor = {
   providerId: string;
   id: string;
-  canonical_slug: string;
+  canonicalSlug: string;
   displayName: string;
   contextLength?: number;
 };

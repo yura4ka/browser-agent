@@ -1,9 +1,5 @@
 import { Result } from "@/core/Result";
-import type {
-  ModelDescriptor,
-  ProviderCatalog,
-  ProviderContext,
-} from "../types";
+import type { ModelDescriptor, ProviderCatalog, ProviderDeps } from "../types";
 import {
   type OpenRouterModel,
   type OpenRouterModelsResponse,
@@ -14,9 +10,9 @@ export class OpenRouterCatalog implements ProviderCatalog {
   constructor(private readonly providerId: string) {}
 
   async discoverModels(
-    context: ProviderContext,
+    deps: ProviderDeps,
   ): Promise<Result<ModelDescriptor[] | null>> {
-    const apiKey = context.config.env.OPENROUTER_API_KEY;
+    const apiKey = deps.config.env.OPENROUTER_API_KEY;
     if (!apiKey) return Result.Ok(null);
 
     const url = new URL("https://openrouter.ai/api/v1/models");
@@ -77,7 +73,7 @@ export class OpenRouterCatalog implements ProviderCatalog {
     const descriptor: ModelDescriptor = {
       providerId: this.providerId,
       id: model.id,
-      canonical_slug: model.canonical_slug,
+      canonicalSlug: model.canonical_slug,
       displayName: model.name,
     };
 

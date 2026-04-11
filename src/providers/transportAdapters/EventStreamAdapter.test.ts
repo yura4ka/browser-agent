@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import type { AssistantMessage } from "@/core/messages";
 import { Result } from "@/core/Result";
-import type { ChatRequest, LLMStreamEvent, ProviderContext } from "../types";
+import type { ChatRequest, LLMStreamEvent, ProviderDeps } from "../types";
 import { EventStreamAdapter } from "./EventStreamAdapter";
 
 type ParserInstance = {
@@ -19,10 +19,13 @@ const request: ChatRequest = {
   messages: [],
 };
 
-const context: ProviderContext = {
+const deps: ProviderDeps = {
   config: {
     env: {},
-    preferences: {},
+    preferences: {
+      autoAllowAllTabs: false,
+      urlAllowList: [],
+    },
   },
 };
 
@@ -111,7 +114,7 @@ class TestEventStreamAdapter extends EventStreamAdapter {
 
   protected override async fetchWithStream(
     _request: ChatRequest,
-    _context: ProviderContext,
+    _deps: ProviderDeps,
     _signal?: AbortSignal,
   ): Promise<Result<Response>> {
     return this.fetchResultFactory();
@@ -138,7 +141,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.fromCanonical("fetch failed"),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
     expect(events).toEqual([{ type: "error", error: "fetch failed" }]);
   });
 
@@ -155,7 +158,7 @@ describe("EventStreamAdapter", () => {
     controller.abort();
 
     const events = await collectEvents(
-      adapter.streamChat(request, context, controller.signal),
+      adapter.streamChat(request, deps, controller.signal),
     );
 
     expect(events).toEqual([{ type: "error", error: "Stream aborted" }]);
@@ -170,7 +173,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok({ body: null } as Response),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
     expect(events).toEqual([{ type: "error", error: "No response body" }]);
   });
 
@@ -197,7 +200,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok(responseWithReader(reader)),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
 
     expect(events).toEqual([
       { type: "text-delta", text: "first" },
@@ -227,7 +230,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok(responseWithReader(reader)),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
 
     expect(events).toEqual([
       { type: "message-complete", message: assistantMessage },
@@ -252,7 +255,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok(responseWithReader(reader)),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
 
     expect(events).toEqual([{ type: "error", error: "Stream aborted" }]);
     expect(state.released).toBe(true);
@@ -271,7 +274,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok(responseWithReader(reader)),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
 
     expect(events).toEqual([
       { type: "error", error: "Stream interrupted: network dropped" },
@@ -293,7 +296,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok(responseWithReader(reader)),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
 
     expect(events).toEqual([
       { type: "text-delta", text: "delta" },
@@ -323,7 +326,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok(responseWithReader(reader)),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
 
     expect(events).toEqual([
       { type: "text-delta", text: "�" },
@@ -345,7 +348,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok(responseWithReader(reader)),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
 
     expect(events).toEqual([
       { type: "error", error: "Stream interrupted: reset boom" },
@@ -371,7 +374,7 @@ describe("EventStreamAdapter", () => {
       async () => Result.Ok(responseWithReader(reader)),
     );
 
-    const events = await collectEvents(adapter.streamChat(request, context));
+    const events = await collectEvents(adapter.streamChat(request, deps));
 
     expect(events).toEqual([{ type: "error", error: "bad chunk" }]);
     expect(state.cancelled).toBe(true);

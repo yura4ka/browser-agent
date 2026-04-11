@@ -5,7 +5,7 @@ import {
 } from "eventsource-parser";
 import { Result } from "@/core/Result";
 import { EventStreamAdapter } from "../transportAdapters/EventStreamAdapter";
-import type { ChatRequest, LLMStreamEvent, ProviderContext } from "../types";
+import type { ChatRequest, LLMStreamEvent, ProviderDeps } from "../types";
 import { OpenRouterMessageBuilder } from "./OpenRouterMessageBuilder";
 import type { OpenRouterChunk } from "./types";
 
@@ -94,10 +94,10 @@ export class OpenRouterTransport extends EventStreamAdapter {
 
   protected override async fetchWithStream(
     request: ChatRequest,
-    context: ProviderContext,
+    deps: ProviderDeps,
     signal?: AbortSignal,
   ): Promise<Result<Response>> {
-    const apiKey = context.config.env.OPENROUTER_API_KEY;
+    const apiKey = deps.config.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return Result.fromCanonical("Missing OPENROUTER_API_KEY");
     }

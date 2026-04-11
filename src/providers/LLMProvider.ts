@@ -4,15 +4,15 @@ import type {
   LLMStreamEvent,
   ModelDescriptor,
   ProviderCatalog,
-  ProviderContext,
+  ProviderDeps,
   ProviderDescriptor,
   ProviderIdentity,
   ProviderTransport,
 } from "./types";
 
 export abstract class LLMProvider {
-  protected _connectionResult: Result<void> | null = null;
-  protected _models: ModelDescriptor[] = [];
+  protected connectionResultValue: Result<void> | null = null;
+  protected models: ModelDescriptor[] = [];
 
   protected constructor(
     protected readonly identity: ProviderIdentity,
@@ -29,7 +29,7 @@ export abstract class LLMProvider {
   }
 
   get connectionResult(): Result<void> | null {
-    return this._connectionResult;
+    return this.connectionResultValue;
   }
 
   getDescriptor(): ProviderDescriptor {
@@ -40,30 +40,30 @@ export abstract class LLMProvider {
     };
   }
 
-  async init(context: ProviderContext): Promise<void> {
-    const modelsResult = await this.catalog.discoverModels(context);
+  async init(deps: ProviderDeps): Promise<void> {
+    const modelsResult = await this.catalog.discoverModels(deps);
     if (Result.isErr(modelsResult)) {
-      this._connectionResult = modelsResult;
+      this.connectionResultValue = modelsResult;
       return;
     }
 
     if (!modelsResult.value) {
-      this._connectionResult = null;
+      this.connectionResultValue = null;
       return;
     }
-    this._models = modelsResult.value;
-    this._connectionResult = Result.Ok(undefined);
+    this.models = modelsResult.value;
+    this.connectionResultValue = Result.Ok(undefined);
   }
 
   getModels(): ModelDescriptor[] {
-    return this._models;
+    return this.models;
   }
 
   streamChat(
     request: ChatRequest,
-    context: ProviderContext,
+    deps: ProviderDeps,
     signal?: AbortSignal,
   ): AsyncGenerator<LLMStreamEvent> {
-    return this.transport.streamChat(request, context, signal);
+    return this.transport.streamChat(request, deps, signal);
   }
 }

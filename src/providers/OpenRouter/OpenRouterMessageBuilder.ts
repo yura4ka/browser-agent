@@ -26,12 +26,12 @@ export class OpenRouterMessageBuilder extends AssistantMessageBuilder<
       if (!delta) continue;
 
       if (delta.content) {
-        this._contentParts.push(delta.content);
+        this.contentParts.push(delta.content);
       }
 
       for (const tc of delta.tool_calls ?? []) {
         const parsed = this.parseToolCallDelta(tc);
-        let entry = this._toolCallsByIndex.get(parsed.index);
+        let entry = this.toolCallsByIndex.get(parsed.index);
 
         if (!entry) {
           entry = {
@@ -39,7 +39,7 @@ export class OpenRouterMessageBuilder extends AssistantMessageBuilder<
             nameParts: [],
             argumentsParts: [],
           };
-          this._toolCallsByIndex.set(parsed.index, entry);
+          this.toolCallsByIndex.set(parsed.index, entry);
         }
 
         if (tc.id) entry.id = tc.id;

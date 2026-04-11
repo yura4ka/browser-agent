@@ -2,7 +2,7 @@ import { Result } from "@/core/Result";
 import type {
   ChatRequest,
   LLMStreamEvent,
-  ProviderContext,
+  ProviderDeps,
   ProviderTransport,
 } from "../types";
 
@@ -22,16 +22,16 @@ export abstract class EventStreamAdapter implements ProviderTransport {
 
   protected abstract fetchWithStream(
     request: ChatRequest,
-    context: ProviderContext,
+    deps: ProviderDeps,
     signal?: AbortSignal,
   ): Promise<Result<Response>>;
 
   async *streamChat(
     request: ChatRequest,
-    context: ProviderContext,
+    deps: ProviderDeps,
     signal?: AbortSignal,
   ): AsyncGenerator<LLMStreamEvent> {
-    const fetchResult = await this.fetchWithStream(request, context, signal);
+    const fetchResult = await this.fetchWithStream(request, deps, signal);
 
     if (Result.isErr(fetchResult)) {
       yield {

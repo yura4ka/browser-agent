@@ -2,8 +2,8 @@ import type { AssistantMessage, ToolCall } from "@/core/messages";
 import type { ToolCallDelta } from "../types";
 
 export abstract class AssistantMessageBuilder<TChunk, TDelta> {
-  protected _contentParts: string[] = [];
-  protected _toolCallsByIndex: Map<
+  protected contentParts: string[] = [];
+  protected toolCallsByIndex: Map<
     number,
     { id: string; nameParts: string[]; argumentsParts: string[] }
   > = new Map();
@@ -13,7 +13,7 @@ export abstract class AssistantMessageBuilder<TChunk, TDelta> {
   abstract applyChunk(chunk: TChunk): string | null;
 
   finalize(): AssistantMessage {
-    const toolCalls: ToolCall[] = Array.from(this._toolCallsByIndex.entries())
+    const toolCalls: ToolCall[] = Array.from(this.toolCallsByIndex.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([, tc]) => ({
         callId: tc.id,
@@ -23,7 +23,7 @@ export abstract class AssistantMessageBuilder<TChunk, TDelta> {
 
     return {
       role: "assistant",
-      content: [{ type: "text", text: this._contentParts.join("") }],
+      content: [{ type: "text", text: this.contentParts.join("") }],
       toolCalls,
     };
   }
