@@ -16,3 +16,8 @@ export type TabInfo = {
   title: string;
   origin: "agent" | "user";
 };
+
+export type BrowserSelectOption =
+  | { type: "value"; value: string }
+  | { type: "label"; label: string }
+  | { type: "index"; index: number };

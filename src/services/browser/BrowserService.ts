@@ -1,9 +1,15 @@
 import { Result } from "@/core/Result";
 import { BrowserPolicy } from "./BrowserPolicy";
 import { BrowserRuntime } from "./BrowserRuntime";
+import type { LocatorDef } from "./locator/schema";
 import { TabAccessStore } from "./TabAccessStore";
 import { TabRegistry } from "./TabRegistry";
-import type { BrowserSessionContext, BrowserTab, TabInfo } from "./types";
+import type {
+  BrowserSelectOption,
+  BrowserSessionContext,
+  BrowserTab,
+  TabInfo,
+} from "./types";
 
 export class BrowserService {
   private readonly runtime: BrowserRuntime;
@@ -76,6 +82,219 @@ export class BrowserService {
     return Result.Ok(tabs);
   }
 
+  async navigateTab(
+    session: BrowserSessionContext,
+    tabId: string,
+    url: string,
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    return this.runtime.navigate(tabResult.value.page, url);
+  }
+
+  async reloadTab(
+    session: BrowserSessionContext,
+    tabId: string,
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    return this.runtime.reload(tabResult.value.page);
+  }
+
+  async scrollTab(
+    session: BrowserSessionContext,
+    input: { tabId: string; deltaX?: number; deltaY?: number },
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    return this.runtime.scroll(tabResult.value.page, {
+      deltaX: input.deltaX,
+      deltaY: input.deltaY,
+    });
+  }
+
+  async getAriaSnapshot(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator?: LocatorDef; depth?: number },
+  ): Promise<Result<string>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    if (!input.locator) {
+      return this.runtime.getPageAreaSnapshot(tabResult.value.page, {
+        depth: input.depth,
+      });
+    }
+
+    const locator = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locator)) return locator;
+
+    return this.runtime.getLocatorAriaSnapshot(locator.value, {
+      depth: input.depth,
+    });
+  }
+
+  async getHtmlContent(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator?: LocatorDef; maxLength?: number },
+  ): Promise<Result<string>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    if (!input.locator) {
+      return this.runtime.getPageHtmlContent(tabResult.value.page);
+    }
+
+    const locator = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+
+    if (Result.isErr(locator)) return locator;
+
+    const htmlResult = await this.runtime.getLocatorHtmlContent(locator.value);
+    if (Result.isErr(htmlResult)) return htmlResult;
+
+    return Result.Ok(this.truncateText(htmlResult.value, input.maxLength));
+  }
+
+  async getTextContent(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator: LocatorDef; maxLength?: number },
+  ): Promise<Result<string>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    const textResult = await this.runtime.getTextContent(locatorResult.value);
+    if (Result.isErr(textResult)) return textResult;
+
+    return Result.Ok(this.truncateText(textResult.value, input.maxLength));
+  }
+
+  async click(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator: LocatorDef },
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    return this.runtime.click(locatorResult.value);
+  }
+
+  async setChecked(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator: LocatorDef; checked: boolean },
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    return this.runtime.setChecked(locatorResult.value, input.checked);
+  }
+
+  async fillText(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator: LocatorDef; text: string },
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    return this.runtime.fillText(locatorResult.value, input.text);
+  }
+
+  async clear(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator: LocatorDef },
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    return this.runtime.clear(locatorResult.value);
+  }
+
+  async highlight(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator: LocatorDef },
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    return this.runtime.highlight(locatorResult.value);
+  }
+
+  async scrollIntoView(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator: LocatorDef },
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    return this.runtime.scrollIntoView(locatorResult.value);
+  }
+
+  async selectOption(
+    session: BrowserSessionContext,
+    input: { tabId: string; locator: LocatorDef } & BrowserSelectOption,
+  ): Promise<Result<void>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    return this.runtime.selectOption(locatorResult.value, input);
+  }
+
   grantTabToSession(sessionId: string, tabId: string): Result<void> {
     const syncResult = this.syncState();
     if (Result.isErr(syncResult)) return syncResult;
@@ -127,5 +346,13 @@ export class BrowserService {
   ): boolean {
     const accessResult = this.policy.canAccessTab(session, browserPage);
     return Result.isOk(accessResult);
+  }
+
+  private truncateText(text: string, maxLength?: number): string {
+    if (!maxLength || text.length <= maxLength) {
+      return text;
+    }
+
+    return `${text.slice(0, maxLength)}\n[truncated to ${maxLength} characters]`;
   }
 }
