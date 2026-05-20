@@ -1,11 +1,52 @@
-import { AppController } from "@/app/AppController";
+import { Result } from "@/core/Result";
+import { BrowserService } from "@/services/browser/BrowserService";
+import type { BrowserSessionContext } from "@/services/browser/types";
 
-const app = new AppController();
+const scenarioUrl = "https://playwright.dev/";
 
-await app.init();
+const session = {
+  sessionId: "browser-service-smoke-scenario",
+  config: {
+    env: {},
+    preferences: {
+      allowedUrls: [scenarioUrl],
+      autoAllowAllTabs: false,
+    },
+  },
+} satisfies BrowserSessionContext;
 
-console.log("App initialized");
+const browser = new BrowserService();
 
-const res = app.selectModel("openrouter", "google/gemma-4-31b-it:free");
-console.log(res);
-console.log("Selected model:", app.getSelectedModel()?.model);
+const tab = await browser.createTab(session, scenarioUrl);
+
+if (Result.isErr(tab)) {
+  console.error(tab.error);
+  process.exit(1);
+}
+
+const tabId = tab.value;
+
+await browser.click(session, {
+  tabId,
+  locator: {
+    kind: "role",
+    role: "link",
+    options: { name: { type: "text", text: "Get Started" } },
+  },
+});
+
+const result = await browser.getTextContent(session, {
+  tabId,
+  locator: {
+    kind: "role",
+    role: "heading",
+    options: { name: { type: "text", text: "Installation" } },
+  },
+});
+
+if (Result.isErr(result)) {
+  console.error(result.error);
+  process.exit(1);
+}
+
+console.log(result.value);
