@@ -3,11 +3,19 @@ import {
   type EventSourceMessage,
   type ParseError,
 } from "eventsource-parser";
+import type { CanonicalMessage, MessagePart, ToolCall } from "@/core/messages";
 import { Result } from "@/core/Result";
+import type { ToolDefinition } from "@/tools/types";
 import { EventStreamAdapter } from "../transportAdapters/EventStreamAdapter";
 import type { ChatRequest, LLMStreamEvent, ProviderDeps } from "../types";
 import { OpenRouterMessageBuilder } from "./OpenRouterMessageBuilder";
-import type { OpenRouterChunk } from "./types";
+import type {
+  OpenRouterAssistantMessage,
+  OpenRouterChunk,
+  OpenRouterMessage,
+  OpenRouterMessagePart,
+  OpenRouterToolDefintion,
+} from "./types";
 
 export class OpenRouterTransport extends EventStreamAdapter {
   protected override createParser(options: {
@@ -111,7 +119,8 @@ export class OpenRouterTransport extends EventStreamAdapter {
         },
         body: JSON.stringify({
           model: request.modelId,
-          messages: request.messages,
+          messages: request.messages.map((message) => this.mapMessage(message)),
+          tools: request.tools.map(this.mapToolDefinition),
           stream: true,
         }),
         signal,
@@ -155,5 +164,78 @@ export class OpenRouterTransport extends EventStreamAdapter {
     }
 
     return `SSE parse error: ${String(error.type)}`;
+  }
+
+  private mapMessage(message: CanonicalMessage): OpenRouterMessage {
+    switch (message.role) {
+      case "system":
+        return message;
+      case "user":
+        return {
+          role: "user",
+          content: message.content.map((part) => this.mapMessagePart(part)),
+        };
+      case "assistant": {
+        const mapped: OpenRouterAssistantMessage = {
+          role: "assistant",
+          content: message.content.map((part) => this.mapMessagePart(part)),
+        };
+
+        if (message.toolCalls && message.toolCalls.length > 0) {
+          mapped.tool_calls = message.toolCalls.map((toolCall) => ({
+            type: "function",
+            id: toolCall.callId,
+            function: {
+              name: toolCall.toolName,
+              arguments: this.mapToolCallArgs(toolCall),
+            },
+          }));
+        }
+
+        return mapped;
+      }
+      case "tool":
+        return {
+          role: "tool",
+          tool_call_id: message.toolCallId,
+          content: message.content.map((part) => this.mapMessagePart(part)),
+        };
+    }
+  }
+
+  private mapMessagePart(part: MessagePart): OpenRouterMessagePart {
+    switch (part.type) {
+      case "text":
+        return part;
+      case "image":
+        return {
+          type: "image_url",
+          image_url: { url: part.imageUrl },
+        };
+    }
+  }
+
+  private mapToolCallArgs(toolCall: ToolCall): string {
+    if (typeof toolCall.args === "string") {
+      return toolCall.args;
+    }
+
+    const serialized = Result.wrap(() => JSON.stringify(toolCall.args));
+    if (Result.isErr(serialized) || serialized.value === undefined) {
+      return "";
+    }
+
+    return serialized.value;
+  }
+
+  private mapToolDefinition(tool: ToolDefinition): OpenRouterToolDefintion {
+    return {
+      type: "function",
+      function: {
+        name: tool.name,
+        description: tool.description,
+        parameters: tool.parameters,
+      },
+    };
   }
 }

@@ -47,7 +47,14 @@ export class ToolManager {
       );
     }
 
-    return executeResult.value;
+    const resultValue = executeResult.value;
+    if (Result.isErr(resultValue)) {
+      return resultValue;
+    }
+
+    return Array.isArray(resultValue.value)
+      ? Result.Ok(resultValue.value)
+      : Result.Ok([resultValue.value]);
   }
 
   private parseArgs(args: unknown): Result<unknown> {

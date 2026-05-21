@@ -17,6 +17,7 @@ type ReaderStep =
 const request: ChatRequest = {
   modelId: "model-id",
   messages: [],
+  tools: [],
 };
 
 const deps: ProviderDeps = {

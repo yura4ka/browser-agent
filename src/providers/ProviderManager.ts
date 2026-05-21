@@ -1,7 +1,7 @@
 import type { UserConfig } from "@/core/config";
 import { Result } from "@/core/Result";
 import type { LLMProvider } from "./LLMProvider";
-import type { ModelDescriptor } from "./types";
+import type { ModelDescriptor, SelectedModel } from "./types";
 
 export class ProviderManager {
   private providers = new Map<string, LLMProvider>();
@@ -10,7 +10,7 @@ export class ProviderManager {
     model: ModelDescriptor;
   } | null = null;
 
-  get selected(): { provider: LLMProvider; model: ModelDescriptor } | null {
+  get selected(): SelectedModel | null {
     return this.selectedProviderModel;
   }
 

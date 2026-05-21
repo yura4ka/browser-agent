@@ -41,7 +41,7 @@ const toolResultMessageSchema = z.strictObject({
   role: z.literal("tool"),
   toolCallId: z.string(),
   toolName: z.string(),
-  content: messagePartSchema,
+  content: z.array(messagePartSchema),
 });
 
 export const canonicalMessageSchema = z.discriminatedUnion("role", [

@@ -1,6 +1,8 @@
 import type { UserConfig } from "@/core/config";
 import type { AssistantMessage, CanonicalMessage } from "@/core/messages";
 import type { Result } from "@/core/Result";
+import type { ToolDefinition } from "@/tools/types";
+import type { LLMProvider } from "./LLMProvider";
 
 export type ProviderIdentity = {
   readonly id: string;
@@ -35,6 +37,8 @@ export type ModelDescriptor = {
   contextLength?: number;
 };
 
+export type SelectedModel = { provider: LLMProvider; model: ModelDescriptor };
+
 export type LLMStreamEvent =
   | { type: "text-delta"; text: string }
   | { type: "tool-call-delta"; call: ToolCallDelta }
@@ -52,4 +56,5 @@ export type ToolCallDelta = {
 export type ChatRequest = {
   modelId: string;
   messages: CanonicalMessage[];
+  tools: ToolDefinition[];
 };

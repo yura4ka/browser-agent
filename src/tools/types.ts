@@ -14,11 +14,16 @@ export type ToolContext = {
   browser: BrowserService;
 };
 
-export type ToolResult = Result<
-  { type: "text"; content: string } | { type: "image"; url: string }
->;
+export type ToolResultContent =
+  | { type: "text"; content: string }
+  | { type: "image"; url: string };
 
-export type ToolExecute<T> = (ctx: ToolContext, args: T) => Promise<ToolResult>;
+export type ToolResult = Result<ToolResultContent[]>;
+
+export type ToolExecute<T> = (
+  ctx: ToolContext,
+  args: T,
+) => Promise<Result<ToolResultContent[] | ToolResultContent>>;
 
 export type Tool<TArgs> = ToolDefinition & {
   argsSchema: z.ZodType<TArgs>;

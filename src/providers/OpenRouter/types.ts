@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { SystemMessage } from "@/core/messages";
 
 const openRouterModelSchema = z
   .object({
@@ -49,5 +50,46 @@ export type OpenRouterToolCallDelta = {
   function?: {
     name?: string;
     arguments?: string;
+  };
+};
+export type OpenRouterMessagePart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type OpenRouterSystemMessage = SystemMessage;
+
+export type OpenRouterUserMessage = {
+  role: "user";
+  content: OpenRouterMessagePart[];
+};
+
+export type OpenRouterAssistantMessage = {
+  role: "assistant";
+  content: OpenRouterMessagePart[];
+  tool_calls?: {
+    type: "function";
+    id: string;
+    function: { name: string; arguments: string };
+  }[];
+};
+
+export type OpenRouterToolResultMessage = {
+  role: "tool";
+  tool_call_id: string;
+  content: OpenRouterMessagePart[];
+};
+
+export type OpenRouterMessage =
+  | OpenRouterSystemMessage
+  | OpenRouterUserMessage
+  | OpenRouterAssistantMessage
+  | OpenRouterToolResultMessage;
+
+export type OpenRouterToolDefintion = {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
   };
 };
