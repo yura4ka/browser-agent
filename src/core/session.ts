@@ -7,9 +7,18 @@ export type SessionContext = {
   config: UserConfig;
 };
 
+export const agentTurnStatusSchema = z.enum([
+  "completed",
+  "failed",
+  "aborted",
+  "max_iterations",
+]);
+
 export const agentTurnSchema = z.strictObject({
   startTime: z.string(),
   endTime: z.string(),
+  status: agentTurnStatusSchema,
+  error: z.string().optional(),
   provider: z.strictObject({
     id: z.string(),
     displayName: z.string(),
@@ -32,5 +41,6 @@ export const agentSessionSchema = z.strictObject({
   turns: z.array(agentTurnSchema),
 });
 
+export type AgentTurnStatus = z.infer<typeof agentTurnStatusSchema>;
 export type AgentTurn = z.infer<typeof agentTurnSchema>;
 export type AgentSession = z.infer<typeof agentSessionSchema>;

@@ -27,6 +27,7 @@ function createTurn(endTime: string): AgentTurn {
   return {
     startTime: "2026-01-01T00:00:00.000Z",
     endTime,
+    status: "completed",
     provider: { id: "openrouter", displayName: "OpenRouter" },
     model: { id: "model-id", displayName: "Model" },
     messages: [
