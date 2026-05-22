@@ -31,6 +31,7 @@ const testModel: ModelDescriptor = {
   id: "test-model",
   canonicalSlug: "test-model",
   displayName: "Test Model",
+  pricing: { input: 0, output: 0 },
 };
 
 class TestProvider extends LLMProvider {

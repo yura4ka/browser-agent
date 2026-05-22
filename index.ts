@@ -219,8 +219,14 @@ async function selectProvider(
     const context = model.contextLength
       ? chalk.dim(` ${model.contextLength.toLocaleString()} ctx`)
       : "";
+
+    const price =
+      model.pricing.input === 0 && model.pricing.output === 0
+        ? "(Free)"
+        : `($${model.pricing.input.toFixed(2)} / $${model.pricing.output.toFixed(2)} per 1M tokens)`;
+
     writeLine(
-      `${chalk.cyan(String(index + 1).padStart(2))}. ${model.displayName}${context}`,
+      `${chalk.cyan(String(index + 1).padStart(2))}. ${model.displayName}${context} ${chalk.dim(price)}`,
     );
   });
 

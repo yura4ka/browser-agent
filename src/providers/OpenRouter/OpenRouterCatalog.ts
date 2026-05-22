@@ -75,6 +75,10 @@ export class OpenRouterCatalog implements ProviderCatalog {
       id: model.id,
       canonicalSlug: model.canonical_slug,
       displayName: model.name,
+      pricing: {
+        input: Number(model.pricing.prompt) * 1e6,
+        output: Number(model.pricing.completion) * 1e6,
+      },
     };
 
     if (typeof model.context_length === "number") {

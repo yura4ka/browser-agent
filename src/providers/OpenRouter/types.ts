@@ -13,6 +13,10 @@ const openRouterModelSchema = z
       })
       .strip(),
     supported_parameters: z.array(z.string()),
+    pricing: z.object({
+      completion: z.string(),
+      prompt: z.string(),
+    }),
   })
   .strip();
 

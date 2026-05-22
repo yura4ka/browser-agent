@@ -35,6 +35,10 @@ export type ModelDescriptor = {
   canonicalSlug: string;
   displayName: string;
   contextLength?: number;
+  pricing: {
+    input: number;
+    output: number;
+  };
 };
 
 export type SelectedModel = { provider: LLMProvider; model: ModelDescriptor };

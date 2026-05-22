@@ -34,12 +34,14 @@ const testModels: ModelDescriptor[] = [
     id: "z-model",
     canonicalSlug: "z-model",
     displayName: "Z Model",
+    pricing: { input: 0, output: 0 },
   },
   {
     providerId: "test-provider",
     id: "a-model",
     canonicalSlug: "a-model",
     displayName: "A Model",
+    pricing: { input: 0, output: 0 },
   },
 ];
 
