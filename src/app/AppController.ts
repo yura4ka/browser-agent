@@ -22,6 +22,7 @@ import {
   fillTextTool,
   getAriaSnapshotTool,
   getHtmlContentTool,
+  getNavigationPolicyTool,
   getTextContentTool,
   highlightTool,
   listTabsTool,
@@ -188,6 +189,7 @@ export class AppController {
       .addTool(fillTextTool)
       .addTool(getAriaSnapshotTool)
       .addTool(getHtmlContentTool)
+      .addTool(getNavigationPolicyTool)
       .addTool(getTextContentTool)
       .addTool(screenshotTool)
       .addTool(highlightTool)

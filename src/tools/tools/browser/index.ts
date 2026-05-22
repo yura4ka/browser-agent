@@ -3,6 +3,7 @@ export { clickTool } from "./clickTool";
 export { fillTextTool } from "./fillTextTool";
 export { getAriaSnapshotTool } from "./getAriaSnapshotTool";
 export { getHtmlContentTool } from "./getHtmlContentTool";
+export { getNavigationPolicyTool } from "./getNavigationPolicyTool";
 export { getTextContentTool } from "./getTextContentTool";
 export { highlightTool } from "./highlightTool";
 export { listTabsTool } from "./listTabsTool";
