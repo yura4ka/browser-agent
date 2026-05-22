@@ -322,7 +322,7 @@ function startChatTurn(input: string): void {
         handleAgentEvent(event, toolCalls);
       }
     } finally {
-      if (assistantLineOpen) write("\n");
+      if (assistantLineOpen) write("\n\n");
       printTurnMetadata(performance.now() - startedAt);
       if (activeTurn?.abortController === abortController) activeTurn = null;
       if (!isExiting) writePrompt();
@@ -525,9 +525,7 @@ function formatMessageParts(
   >["content"],
 ): string {
   return parts
-    .map((part) =>
-      part.type === "text" ? part.text : `[image] ${part.imageUrl}`,
-    )
+    .map((part) => (part.type === "text" ? part.text : `[image]`))
     .join("\n");
 }
 

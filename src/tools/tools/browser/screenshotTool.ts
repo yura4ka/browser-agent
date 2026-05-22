@@ -13,9 +13,15 @@ export const screenshotTool = createTool({
     );
     if (Result.isErr(screenshotResult)) return screenshotResult;
 
-    return Result.Ok({
-      type: "image",
-      url: screenshotResult.value,
-    });
+    return Result.Ok([
+      {
+        type: "text",
+        content: "Took screenshot (will be omitted in the old turns)",
+      },
+      {
+        type: "image",
+        url: screenshotResult.value,
+      },
+    ]);
   },
 });

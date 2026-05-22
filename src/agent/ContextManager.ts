@@ -12,9 +12,12 @@ export class ContextManager {
         content: input.session.systemPrompt,
       },
     ];
-    for (const turn of input.session.turns) {
+    for (let i = 0; i < input.session.turns.length; i++) {
+      const turn = input.session.turns[i];
       for (const message of turn.messages) {
-        context.push(message);
+        if (input.session.turns.length - i > 3)
+          context.push(this.removeImagesFromMessage(message));
+        else context.push(message);
       }
 
       const statusMessage = this.createTurnStatusMessage(turn);
@@ -50,5 +53,15 @@ export class ContextManager {
             "Previous turn stopped because the agent reached the maximum iteration limit before completing. Continue from the available context, avoid repeating the same failed loop, and choose a different strategy if needed.",
         };
     }
+  }
+
+  private removeImagesFromMessage(message: CanonicalMessage): CanonicalMessage {
+    const content = message.content;
+    if (!Array.isArray(content) || message.role === "system") return message;
+
+    return {
+      ...message,
+      content: content.filter((part) => part.type !== "image"),
+    };
   }
 }

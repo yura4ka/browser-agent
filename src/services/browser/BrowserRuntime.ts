@@ -1,6 +1,7 @@
 import {
   type BrowserContext,
   chromium,
+  devices,
   type Locator,
   type Page,
 } from "playwright";
@@ -23,7 +24,11 @@ export class BrowserRuntime {
 
     try {
       const browser = await chromium.launch({ headless: false });
-      const context = await browser.newContext();
+      const context = await browser.newContext({
+        ...devices["Desktop Chrome"],
+        viewport: null,
+        deviceScaleFactor: undefined,
+      });
       this.browserContext = context;
       return Result.Ok(context);
     } catch (error) {
@@ -150,23 +155,8 @@ export class BrowserRuntime {
     page: Page,
     options: PageScreenshotOptions,
   ): Promise<Result<string>> {
-    const screenshotResult = await Result.fromPromise(page.screenshot(options));
-    if (Result.isErr(screenshotResult)) {
-      return Result.fromCanonical(
-        "Failed to get screenshot",
-        this.withHint(screenshotResult.error),
-      );
-    }
-    const base64 = screenshotResult.value.toString("base64");
-    return Result.Ok(`data:image/png;base64,${base64}`);
-  }
-
-  async getLocatorScreenshot(
-    locator: Locator,
-    options: LocatorScreenShotOptions,
-  ): Promise<Result<string>> {
     const screenshotResult = await Result.fromPromise(
-      locator.screenshot(options),
+      page.screenshot({ ...options, type: "jpeg", quality: 70, scale: "css" }),
     );
     if (Result.isErr(screenshotResult)) {
       return Result.fromCanonical(
@@ -175,7 +165,29 @@ export class BrowserRuntime {
       );
     }
     const base64 = screenshotResult.value.toString("base64");
-    return Result.Ok(`data:image/png;base64,${base64}`);
+    return Result.Ok(`data:image/jpeg;base64,${base64}`);
+  }
+
+  async getLocatorScreenshot(
+    locator: Locator,
+    options: LocatorScreenShotOptions,
+  ): Promise<Result<string>> {
+    const screenshotResult = await Result.fromPromise(
+      locator.screenshot({
+        ...options,
+        type: "jpeg",
+        quality: 70,
+        scale: "css",
+      }),
+    );
+    if (Result.isErr(screenshotResult)) {
+      return Result.fromCanonical(
+        "Failed to get screenshot",
+        this.withHint(screenshotResult.error),
+      );
+    }
+    const base64 = screenshotResult.value.toString("base64");
+    return Result.Ok(`data:image/jpeg;base64,${base64}`);
   }
 
   async getLocatorHtmlContent(locator: Locator): Promise<Result<string>> {
