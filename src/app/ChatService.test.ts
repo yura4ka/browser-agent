@@ -16,6 +16,7 @@ const config: UserConfig = {
   preferences: {
     allowedUrls: [],
     autoAllowAllTabs: false,
+    promptCaching: { enabled: false, minCharacters: 2048 },
   },
 };
 

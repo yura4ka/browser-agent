@@ -10,6 +10,23 @@ const deps: ProviderDeps = {
     preferences: {
       autoAllowAllTabs: false,
       allowedUrls: [],
+      promptCaching: {
+        enabled: false,
+        minCharacters: 2048,
+      },
+    },
+  },
+};
+
+const promptCachingDeps: ProviderDeps = {
+  config: {
+    ...deps.config,
+    preferences: {
+      ...deps.config.preferences,
+      promptCaching: {
+        enabled: true,
+        minCharacters: 10,
+      },
     },
   },
 };
@@ -187,6 +204,97 @@ describe("OpenRouterTransport", () => {
           },
         },
       ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("adds cache control to the first eligible system prompt", async () => {
+    const originalFetch = globalThis.fetch;
+    let body: unknown;
+
+    globalThis.fetch = (async (_input, init) => {
+      body = JSON.parse(String(init?.body));
+      return streamResponse("data: [DONE]\n\n");
+    }) as typeof fetch;
+
+    try {
+      const request: ChatRequest = {
+        modelId: "model-id",
+        messages: [
+          { role: "system", content: "Long stable system prompt" },
+          { role: "system", content: "Dynamic status" },
+          { role: "user", content: [{ type: "text", text: "Hello" }] },
+        ],
+        tools: [],
+      };
+
+      await collectEvents(
+        new OpenRouterTransport().streamChat(request, promptCachingDeps),
+      );
+
+      expect(body).toEqual({
+        model: "model-id",
+        messages: [
+          {
+            role: "system",
+            content: [
+              {
+                type: "text",
+                text: "Long stable system prompt",
+                cache_control: { type: "ephemeral" },
+              },
+            ],
+          },
+          { role: "system", content: "Dynamic status" },
+          {
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+        ],
+        tools: [],
+        stream: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("does not cache short system prompts", async () => {
+    const originalFetch = globalThis.fetch;
+    let body: unknown;
+
+    globalThis.fetch = (async (_input, init) => {
+      body = JSON.parse(String(init?.body));
+      return streamResponse("data: [DONE]\n\n");
+    }) as typeof fetch;
+
+    try {
+      const request: ChatRequest = {
+        modelId: "model-id",
+        messages: [
+          { role: "system", content: "Short" },
+          { role: "user", content: [{ type: "text", text: "Hello" }] },
+        ],
+        tools: [],
+      };
+
+      await collectEvents(
+        new OpenRouterTransport().streamChat(request, promptCachingDeps),
+      );
+
+      expect(body).toEqual({
+        model: "model-id",
+        messages: [
+          { role: "system", content: "Short" },
+          {
+            role: "user",
+            content: [{ type: "text", text: "Hello" }],
+          },
+        ],
+        tools: [],
+        stream: true,
+      });
     } finally {
       globalThis.fetch = originalFetch;
     }

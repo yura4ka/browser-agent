@@ -14,6 +14,7 @@ import type {
   OpenRouterChunk,
   OpenRouterMessage,
   OpenRouterMessagePart,
+  OpenRouterSystemMessage,
   OpenRouterToolDefintion,
 } from "./types";
 import { openRouterChunkSchema } from "./types";
@@ -120,7 +121,15 @@ export class OpenRouterTransport extends EventStreamAdapter {
         },
         body: JSON.stringify({
           model: request.modelId,
-          messages: request.messages.map((message) => this.mapMessage(message)),
+          messages: request.messages.map((message, index) =>
+            this.mapMessage(message, {
+              cacheSystemPrompt: this.shouldCacheSystemPrompt(
+                message,
+                index,
+                deps,
+              ),
+            }),
+          ),
           tools: request.tools.map(this.mapToolDefinition),
           stream: true,
         }),
@@ -176,10 +185,27 @@ export class OpenRouterTransport extends EventStreamAdapter {
     return `SSE parse error: ${String(error.type)}`;
   }
 
-  private mapMessage(message: CanonicalMessage): OpenRouterMessage {
+  private shouldCacheSystemPrompt(
+    message: CanonicalMessage,
+    index: number,
+    deps: ProviderDeps,
+  ): boolean {
+    const promptCaching = deps.config.preferences.promptCaching;
+    return (
+      index === 0 &&
+      message.role === "system" &&
+      promptCaching.enabled &&
+      message.content.length >= promptCaching.minCharacters
+    );
+  }
+
+  private mapMessage(
+    message: CanonicalMessage,
+    options: { cacheSystemPrompt?: boolean } = {},
+  ): OpenRouterMessage {
     switch (message.role) {
       case "system":
-        return message;
+        return this.mapSystemMessage(message.content, options);
       case "user":
         return {
           role: "user",
@@ -211,6 +237,26 @@ export class OpenRouterTransport extends EventStreamAdapter {
           content: message.content.map((part) => this.mapMessagePart(part)),
         };
     }
+  }
+
+  private mapSystemMessage(
+    content: string,
+    options: { cacheSystemPrompt?: boolean },
+  ): OpenRouterSystemMessage {
+    if (!options.cacheSystemPrompt) {
+      return { role: "system", content };
+    }
+
+    return {
+      role: "system",
+      content: [
+        {
+          type: "text",
+          text: content,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+    };
   }
 
   private mapMessagePart(part: MessagePart): OpenRouterMessagePart {

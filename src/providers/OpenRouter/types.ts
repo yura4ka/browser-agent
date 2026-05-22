@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { SystemMessage } from "@/core/messages";
 
 const openRouterModelSchema = z
   .object({
@@ -84,11 +83,18 @@ export type OpenRouterChunk = z.infer<typeof openRouterChunkSchema>;
 export type OpenRouterToolCallDelta = z.infer<
   typeof openRouterToolCallDeltaSchema
 >;
+export type OpenRouterCacheControl = {
+  type: "ephemeral";
+};
+
 export type OpenRouterMessagePart =
-  | { type: "text"; text: string }
+  | { type: "text"; text: string; cache_control?: OpenRouterCacheControl }
   | { type: "image_url"; image_url: { url: string } };
 
-export type OpenRouterSystemMessage = SystemMessage;
+export type OpenRouterSystemMessage = {
+  role: "system";
+  content: string | Extract<OpenRouterMessagePart, { type: "text" }>[];
+};
 
 export type OpenRouterUserMessage = {
   role: "user";

@@ -10,6 +10,12 @@ const preferencesSchema = z
   .object({
     allowedUrls: z.array(z.string()).default([]),
     autoAllowAllTabs: z.boolean().default(false),
+    promptCaching: z
+      .object({
+        enabled: z.boolean().default(false),
+        minCharacters: z.number().int().min(0).default(2048),
+      })
+      .default({ enabled: false, minCharacters: 2048 }),
   })
   .strip();
 

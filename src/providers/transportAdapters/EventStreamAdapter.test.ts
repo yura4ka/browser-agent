@@ -26,6 +26,7 @@ const deps: ProviderDeps = {
     preferences: {
       autoAllowAllTabs: false,
       allowedUrls: [],
+      promptCaching: { enabled: false, minCharacters: 2048 },
     },
   },
 };
