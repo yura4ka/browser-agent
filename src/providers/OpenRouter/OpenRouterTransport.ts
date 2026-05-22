@@ -131,6 +131,7 @@ export class OpenRouterTransport extends EventStreamAdapter {
             }),
           ),
           tools: request.tools.map(this.mapToolDefinition),
+          session_id: request.sessionId,
           stream: true,
         }),
         signal,

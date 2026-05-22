@@ -177,6 +177,7 @@ export class Agent {
         modelId: selected.model.id,
         messages,
         tools: this.tools.getTools(),
+        sessionId: deps.session.id,
       },
       { config: deps.config },
       deps.signal,

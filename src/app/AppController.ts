@@ -37,21 +37,18 @@ import {
 import { screenshotTool } from "@/tools/tools/browser/screenshotTool";
 import { ChatService } from "./ChatService";
 
-type AppConfig = Pick<ConfigService, "get" | "init">;
-type AppChatService = Pick<ChatService, "chat">;
-
 export type AppControllerDeps = {
-  config?: AppConfig;
+  config?: ConfigService;
   providers?: ProviderManager;
   sessions?: SessionStore;
-  chatService?: AppChatService;
+  chatService?: ChatService;
 };
 
 export class AppController {
-  private readonly config: AppConfig;
+  private readonly config: ConfigService;
   private readonly providers: ProviderManager;
   private readonly sessions: SessionStore;
-  private readonly chatService: AppChatService;
+  private readonly chatService: ChatService;
   private selectedSessionId: string | null = null;
 
   constructor(deps: AppControllerDeps = {}) {

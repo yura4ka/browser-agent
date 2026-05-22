@@ -430,7 +430,7 @@ function printToolResult(call: ToolCall | undefined, result: ToolResult): void {
     if (part.type === "text") {
       writeLine(chalk.dim(part.content));
     } else {
-      writeLine(chalk.dim(`[image] ${part.url}`));
+      writeLine(chalk.dim(`[image]`));
     }
   }
 }

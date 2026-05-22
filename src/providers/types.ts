@@ -61,4 +61,5 @@ export type ChatRequest = {
   modelId: string;
   messages: CanonicalMessage[];
   tools: ToolDefinition[];
+  sessionId?: string;
 };
