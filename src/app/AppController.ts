@@ -33,6 +33,7 @@ import {
   selectOptionTool,
   setCheckedTool,
 } from "@/tools/tools/browser";
+import { screenshotTool } from "@/tools/tools/browser/screenshotTool";
 import { ChatService } from "./ChatService";
 
 type AppConfig = Pick<ConfigService, "get" | "init">;
@@ -188,6 +189,7 @@ export class AppController {
       .addTool(getAriaSnapshotTool)
       .addTool(getHtmlContentTool)
       .addTool(getTextContentTool)
+      .addTool(screenshotTool)
       .addTool(highlightTool)
       .addTool(listTabsTool)
       .addTool(navigateTool)

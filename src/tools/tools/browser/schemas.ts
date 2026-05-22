@@ -46,3 +46,23 @@ export const selectOptionArgsSchema = z.discriminatedUnion("type", [
     })
     .strict(),
 ]);
+
+export const screenshotOptionsSchema = optionalLocatorArgsSchema.extend({
+  options: z
+    .object({
+      animations: z.enum(["disabled", "allow"]).optional(),
+      timeout: z.number().optional(),
+      fullPage: z.boolean().optional(),
+      clip: z
+        .object({
+          x: z.number().int().min(0),
+          y: z.number().int().min(0),
+          width: z.number().int().min(0),
+          height: z.number().int().min(0),
+        })
+        .strict()
+        .optional(),
+    })
+    .strict()
+    .optional(),
+});

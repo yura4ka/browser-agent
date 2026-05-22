@@ -7,7 +7,11 @@ import {
 import { Result } from "@/core/Result";
 import { resolveLocator } from "./locator/resolveLocator";
 import type { LocatorDef } from "./locator/schema";
-import type { BrowserSelectOption } from "./types";
+import type {
+  BrowserSelectOption,
+  LocatorScreenShotOptions,
+  PageScreenshotOptions,
+} from "./types";
 
 export class BrowserRuntime {
   private browserContext: BrowserContext | null = null;
@@ -140,6 +144,38 @@ export class BrowserRuntime {
     }
 
     return Result.Ok(contentResult.value);
+  }
+
+  async getPageScreenshot(
+    page: Page,
+    options: PageScreenshotOptions,
+  ): Promise<Result<string>> {
+    const screenshotResult = await Result.fromPromise(page.screenshot(options));
+    if (Result.isErr(screenshotResult)) {
+      return Result.fromCanonical(
+        "Failed to get screenshot",
+        this.withHint(screenshotResult.error),
+      );
+    }
+    const base64 = screenshotResult.value.toString("base64");
+    return Result.Ok(`data:image/png;base64,${base64}`);
+  }
+
+  async getLocatorScreenshot(
+    locator: Locator,
+    options: LocatorScreenShotOptions,
+  ): Promise<Result<string>> {
+    const screenshotResult = await Result.fromPromise(
+      locator.screenshot(options),
+    );
+    if (Result.isErr(screenshotResult)) {
+      return Result.fromCanonical(
+        "Failed to get screenshot",
+        this.withHint(screenshotResult.error),
+      );
+    }
+    const base64 = screenshotResult.value.toString("base64");
+    return Result.Ok(`data:image/png;base64,${base64}`);
   }
 
   async getLocatorHtmlContent(locator: Locator): Promise<Result<string>> {

@@ -8,6 +8,7 @@ import type {
   BrowserSelectOption,
   BrowserSessionContext,
   BrowserTab,
+  PageScreenshotOptions,
   TabInfo,
 } from "./types";
 
@@ -181,6 +182,36 @@ export class BrowserService {
     if (Result.isErr(textResult)) return textResult;
 
     return Result.Ok(this.truncateText(textResult.value, input.maxLength));
+  }
+
+  async screenshot(
+    session: BrowserSessionContext,
+    input: {
+      tabId: string;
+      locator?: LocatorDef;
+      options?: PageScreenshotOptions;
+    },
+  ): Promise<Result<string>> {
+    const tabResult = this.resolveAuthorizedTab(session, input.tabId);
+    if (Result.isErr(tabResult)) return tabResult;
+
+    if (!input.locator) {
+      return this.runtime.getPageScreenshot(
+        tabResult.value.page,
+        input.options ?? {},
+      );
+    }
+
+    const locatorResult = this.runtime.resolveLocator(
+      tabResult.value.page,
+      input.locator,
+    );
+    if (Result.isErr(locatorResult)) return locatorResult;
+
+    return this.runtime.getLocatorScreenshot(
+      locatorResult.value,
+      input.options ?? {},
+    );
   }
 
   async click(

@@ -21,3 +21,13 @@ export type BrowserSelectOption =
   | { type: "value"; value: string }
   | { type: "label"; label: string }
   | { type: "index"; index: number };
+
+export type LocatorScreenShotOptions = {
+  animations?: "disabled" | "allow";
+  timeout?: number;
+};
+
+export type PageScreenshotOptions = LocatorScreenShotOptions & {
+  clip?: { x: number; y: number; width: number; height: number };
+  fullPage?: boolean;
+};
