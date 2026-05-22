@@ -43,94 +43,128 @@ export class Agent {
       newMessage: message,
     });
 
-    for (let iteration = 0; iteration < maxIterations; iteration++) {
-      if (deps.signal?.aborted) {
-        this.appendTurn(
-          deps.session,
+    try {
+      for (let iteration = 0; iteration < maxIterations; iteration++) {
+        if (deps.signal?.aborted) {
+          this.appendTurn(
+            deps.session,
+            selected,
+            startTime,
+            turnMessages,
+            "aborted",
+            "Aborted",
+          );
+          yield { type: "error", error: "Aborted" };
+          return;
+        }
+
+        const assistantResult = yield* this.streamAssistantMessage(
           selected,
-          startTime,
-          turnMessages,
-          "aborted",
-          "Aborted",
+          deps,
+          messages,
         );
-        yield { type: "error", error: "Aborted" };
-        return;
-      }
 
-      const assistantResult = yield* this.streamAssistantMessage(
-        selected,
-        deps,
-        messages,
-      );
+        if (Result.isErr(assistantResult)) {
+          this.appendTurn(
+            deps.session,
+            selected,
+            startTime,
+            turnMessages,
+            "failed",
+            assistantResult.error.message,
+          );
+          yield { type: "error", error: assistantResult.error.message };
+          return;
+        }
 
-      if (Result.isErr(assistantResult)) {
-        this.appendTurn(
-          deps.session,
-          selected,
-          startTime,
-          turnMessages,
-          "failed",
-          assistantResult.error.message,
-        );
-        yield { type: "error", error: assistantResult.error.message };
-        return;
-      }
+        const assistantMessage = assistantResult.value;
+        turnMessages.push(assistantMessage);
+        messages = [...messages, assistantMessage];
 
-      const assistantMessage = assistantResult.value;
-      turnMessages.push(assistantMessage);
-      messages = [...messages, assistantMessage];
+        const toolCalls = assistantMessage.toolCalls ?? [];
+        if (toolCalls.length === 0) {
+          this.appendTurn(
+            deps.session,
+            selected,
+            startTime,
+            turnMessages,
+            "completed",
+          );
+          yield { type: "done" };
+          return;
+        }
 
-      const toolCalls = assistantMessage.toolCalls ?? [];
-      if (toolCalls.length === 0) {
-        this.appendTurn(
-          deps.session,
-          selected,
-          startTime,
-          turnMessages,
-          "completed",
-        );
-        yield { type: "done" };
-        return;
-      }
+        for (const toolCall of toolCalls) {
+          if (deps.signal?.aborted) {
+            this.appendTurn(
+              deps.session,
+              selected,
+              startTime,
+              turnMessages,
+              "aborted",
+              "Aborted",
+            );
+            yield { type: "error", error: "Aborted" };
+            return;
+          }
 
-      for (const toolCall of toolCalls) {
-        yield { type: "tool-call", call: toolCall };
+          yield { type: "tool-call", call: toolCall };
 
-        const toolResult = await this.tools.execute(
-          {
-            browser: this.browser,
-            session: {
-              sessionId: deps.session.id,
-              config: deps.config,
+          const toolResult = await this.tools.execute(
+            {
+              browser: this.browser,
+              session: {
+                sessionId: deps.session.id,
+                config: deps.config,
+              },
             },
-          },
-          toolCall,
-        );
+            toolCall,
+          );
 
-        const toolMessage = this.createToolResultMessage(toolCall, toolResult);
-        turnMessages.push(toolMessage);
-        messages = [...messages, toolMessage];
-        yield {
-          type: "tool-result",
-          callId: toolCall.callId,
-          result: toolResult,
-        };
+          const toolMessage = this.createToolResultMessage(
+            toolCall,
+            toolResult,
+          );
+          turnMessages.push(toolMessage);
+          messages = [...messages, toolMessage];
+          yield {
+            type: "tool-result",
+            callId: toolCall.callId,
+            result: toolResult,
+          };
+        }
       }
-    }
 
-    const error = `Agent stopped after ${maxIterations} iterations`;
-    this.appendTurn(
-      deps.session,
-      selected,
-      startTime,
-      turnMessages,
-      "max_iterations",
-      error,
-    );
-    yield {
-      type: "error",
-      error,
-    };
+      const error = `Agent stopped after ${maxIterations} iterations`;
+      this.appendTurn(
+        deps.session,
+        selected,
+        startTime,
+        turnMessages,
+        "max_iterations",
+        error,
+      );
+      yield {
+        type: "error",
+        error,
+      };
+    } catch (error) {
+      const message = deps.signal?.aborted
+        ? "Aborted"
+        : this.errorToMessage(error);
+      this.appendTurn(
+        deps.session,
+        selected,
+        startTime,
+        turnMessages,
+        deps.signal?.aborted ? "aborted" : "failed",
+        message,
+      );
+      yield {
+        type: "error",
+        error: message,
+      };
+    }
   }
 
   private async *streamAssistantMessage(
@@ -222,5 +256,10 @@ export class Agent {
     }
 
     return error.message;
+  }
+
+  private errorToMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    return String(error);
   }
 }

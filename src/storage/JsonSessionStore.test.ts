@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Result } from "@/core/Result";
 import type { AgentSession, AgentTurn } from "@/core/session";
+import { SYSTEM_PROMPT } from "@/core/systemPrompt";
 import { JsonSessionStore } from "./JsonSessionStore";
 
 const tempDirectories: string[] = [];
@@ -66,6 +67,7 @@ describe("JsonSessionStore", () => {
     if (Result.isErr(getResult)) throw getResult.error;
 
     expect(getResult.value).toEqual(createResult.value);
+    expect(getResult.value?.systemPrompt).toBe(SYSTEM_PROMPT);
   });
 
   test("saves and lists session summaries sorted by latest turn", async () => {

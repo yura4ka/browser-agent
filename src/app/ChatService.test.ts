@@ -189,16 +189,17 @@ describe("ChatService", () => {
 
   test("returns save errors instead of a terminal done event", async () => {
     const session = createSession();
+    const completedTurn = createCompletedTurn();
     const sessions = new TestSessionStore();
     sessions.sessionResult = Result.Ok(session);
     sessions.saveResult = Result.fromCanonical(
       "Failed to save session",
       "disk full",
     );
-    const agent = new TestAgent([
-      { type: "assistant-text", text: "Hi" },
-      { type: "done" },
-    ]);
+    const agent = new TestAgent(
+      [{ type: "assistant-text", text: "Hi" }, { type: "done" }],
+      (s) => s.turns.push(completedTurn),
+    );
     const service = new ChatService(sessions, agent, configService);
 
     const events = await collectEvents(service.chat("session-id", "Hello"));
@@ -208,5 +209,28 @@ describe("ChatService", () => {
       { type: "error", error: "Failed to save session (disk full)" },
     ]);
     expect(sessions.savedSessions).toEqual([session]);
+  });
+
+  test("saves changed sessions when the agent throws", async () => {
+    const session = createSession();
+    const completedTurn = createCompletedTurn();
+    const sessions = new TestSessionStore();
+    sessions.sessionResult = Result.Ok(session);
+    const agent = {
+      async *runTurn(deps: AgentDeps, _message: UserMessage) {
+        deps.session.turns.push(completedTurn);
+        if (deps.session.id === "never") {
+          yield { type: "status" as const, message: "unused" };
+        }
+        throw new Error("boom");
+      },
+    };
+    const service = new ChatService(sessions, agent, configService);
+
+    const events = await collectEvents(service.chat("session-id", "Hello"));
+
+    expect(events).toEqual([{ type: "error", error: "boom" }]);
+    expect(sessions.savedSessions).toEqual([session]);
+    expect(sessions.savedSessions[0]?.turns).toEqual([completedTurn]);
   });
 });

@@ -53,6 +53,26 @@ class TestProvider extends LLMProvider {
   }
 }
 
+class ThrowingProvider extends LLMProvider {
+  constructor(requests: ChatRequest[]) {
+    super(
+      { id: "test-provider", displayName: "Test Provider" },
+      {
+        discoverModels: async () => Result.Ok([testModel]),
+      },
+      {
+        streamChat: async function* (request) {
+          requests.push(request);
+          if (request.modelId === "never") {
+            yield { type: "sse-comment", content: "unused" };
+          }
+          throw new Error("provider exploded");
+        },
+      },
+    );
+  }
+}
+
 function createSession(input: Partial<AgentSession> = {}): AgentSession {
   return {
     id: "session-id",
@@ -93,6 +113,18 @@ async function createProviderManager(responses: LLMStreamEvent[][]): Promise<{
   const providers = new ProviderManager().add(
     new TestProvider(responses, requests),
   );
+
+  await providers.initAll(config);
+  providers.select(testModel.providerId, testModel.id);
+  return { providers, requests };
+}
+
+async function createThrowingProviderManager(): Promise<{
+  providers: ProviderManager;
+  requests: ChatRequest[];
+}> {
+  const requests: ChatRequest[] = [];
+  const providers = new ProviderManager().add(new ThrowingProvider(requests));
 
   await providers.initAll(config);
   providers.select(testModel.providerId, testModel.id);
@@ -257,6 +289,22 @@ describe("Agent", () => {
       },
       userMessage("Try again differently"),
     ]);
+  });
+
+  test("persists unexpected provider exceptions", async () => {
+    const session = createSession();
+    const { providers, requests } = await createThrowingProviderManager();
+    const agent = createAgent(providers);
+
+    const events = await collectEvents(
+      agent.runTurn({ session, config }, userMessage("Do the task")),
+    );
+
+    expect(events).toEqual([{ type: "error", error: "provider exploded" }]);
+    expect(requests).toHaveLength(1);
+    expect(session.turns[0]?.status).toBe("failed");
+    expect(session.turns[0]?.error).toBe("provider exploded");
+    expect(session.turns[0]?.messages).toEqual([userMessage("Do the task")]);
   });
 
   test("persists aborted turns", async () => {

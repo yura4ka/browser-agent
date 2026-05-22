@@ -4,6 +4,7 @@ import type { AgentEvent } from "@/agent/types";
 import { ConfigService } from "@/core/config";
 import { Result } from "@/core/Result";
 import type { AgentSession } from "@/core/session";
+import { SYSTEM_PROMPT } from "@/core/systemPrompt";
 import { OpenRouterProvider } from "@/providers/OpenRouter/OpenRouterProvider";
 import { ProviderManager } from "@/providers/ProviderManager";
 import type {
@@ -137,6 +138,11 @@ export class AppController {
     const cleanup = this.forwardAbort(signal, abortController);
 
     try {
+      if (abortController.signal.aborted) {
+        yield { type: "error", error: "Aborted" };
+        return;
+      }
+
       const sessionId = await this.getOrCreateSessionId(text);
       if (Result.isErr(sessionId)) {
         yield this.toErrorEvent(sessionId.error);
@@ -194,13 +200,16 @@ export class AppController {
   }
 
   private async getOrCreateSessionId(text: string): Promise<Result<string>> {
-    if (this.selectedSessionId) return Result.Ok(this.selectedSessionId);
-
     const selected = this.providers.selected;
     if (!selected) return Result.fromCanonical("No model selected");
 
+    if (this.selectedSessionId) {
+      return this.updateSelectedSessionModel(this.selectedSessionId, selected);
+    }
+
     const sessionResult = await this.sessions.createSession({
       title: this.createSessionTitle(text),
+      systemPrompt: SYSTEM_PROMPT,
       selectedModel: this.toSessionSelectedModel(selected),
     });
     if (Result.isErr(sessionResult)) return sessionResult;
@@ -220,6 +229,33 @@ export class AppController {
       providerId: selected.provider.id,
       modelId: selected.model.id,
     };
+  }
+
+  private async updateSelectedSessionModel(
+    sessionId: string,
+    selected: SelectedModel,
+  ): Promise<Result<string>> {
+    const sessionResult = await this.sessions.getSession(sessionId);
+    if (Result.isErr(sessionResult)) return sessionResult;
+
+    const session = sessionResult.value;
+    if (!session) {
+      return Result.fromCanonical(`Session not found: ${sessionId}`);
+    }
+
+    const selectedModel = this.toSessionSelectedModel(selected);
+    if (
+      session.selectedModel.providerId === selectedModel.providerId &&
+      session.selectedModel.modelId === selectedModel.modelId
+    ) {
+      return Result.Ok(sessionId);
+    }
+
+    session.selectedModel = selectedModel;
+    const saveResult = await this.sessions.saveSession(session);
+    if (Result.isErr(saveResult)) return saveResult;
+
+    return Result.Ok(sessionId);
   }
 
   private forwardAbort(

@@ -4,6 +4,7 @@ import type { ConfigService, UserConfig } from "@/core/config";
 import type { AssistantMessage } from "@/core/messages";
 import { Result } from "@/core/Result";
 import type { AgentSession } from "@/core/session";
+import { SYSTEM_PROMPT } from "@/core/systemPrompt";
 import { LLMProvider } from "@/providers/LLMProvider";
 import { ProviderManager } from "@/providers/ProviderManager";
 import type { ChatRequest, ModelDescriptor } from "@/providers/types";
@@ -266,6 +267,7 @@ describe("AppController", () => {
     expect(sessions.createInputs).toEqual([
       {
         title: "Hello new session",
+        systemPrompt: SYSTEM_PROMPT,
         selectedModel: { providerId: "test-provider", modelId: "a-model" },
       },
     ]);
@@ -306,6 +308,53 @@ describe("AppController", () => {
     expect(events).toEqual([{ type: "done" }]);
     expect(sessions.createInputs).toEqual([]);
     expect(chatService.calls[0]?.sessionId).toBe("existing");
+  });
+
+  test("updates selected session model metadata before chat", async () => {
+    const providers = await createProviderManager();
+    const sessions = new TestSessionStore();
+    const session = createSession({ id: "existing" });
+    sessions.sessions.set(session.id, session);
+    const { controller, chatService } = createController({
+      providers,
+      sessions,
+    });
+    const selectSessionResult = await controller.selectSession("existing");
+    expect(Result.isOk(selectSessionResult)).toBe(true);
+    const selectModelResult = controller.selectModel(
+      "test-provider",
+      "z-model",
+    );
+    expect(Result.isOk(selectModelResult)).toBe(true);
+
+    const events = await collectEvents(controller.chat("Continue with z"));
+
+    expect(events).toEqual([{ type: "done" }]);
+    expect(chatService.calls[0]?.sessionId).toBe("existing");
+    expect(sessions.sessions.get("existing")?.selectedModel).toEqual({
+      providerId: "test-provider",
+      modelId: "z-model",
+    });
+  });
+
+  test("does not create a session when chat is already aborted", async () => {
+    const providers = await createProviderManager();
+    const { controller, sessions, chatService } = createController({
+      providers,
+    });
+    expect(
+      Result.isOk(controller.selectModel("test-provider", "a-model")),
+    ).toBe(true);
+    const abortController = new AbortController();
+    abortController.abort();
+
+    const events = await collectEvents(
+      controller.chat("Do not create", abortController.signal),
+    );
+
+    expect(events).toEqual([{ type: "error", error: "Aborted" }]);
+    expect(sessions.createInputs).toEqual([]);
+    expect(chatService.calls).toEqual([]);
   });
 
   test("aborts chat and yields an error when chat service throws", async () => {

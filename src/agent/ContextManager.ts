@@ -1,8 +1,6 @@
 import type { CanonicalMessage, UserMessage } from "@/core/messages";
 import type { AgentSession, AgentTurn } from "@/core/session";
 
-const TEST_SYSTEM_PROMPT = "Test system prompt";
-
 export class ContextManager {
   buildContext(input: {
     session: AgentSession;
@@ -11,7 +9,7 @@ export class ContextManager {
     const context: CanonicalMessage[] = [
       {
         role: "system",
-        content: input.session.systemPrompt || TEST_SYSTEM_PROMPT,
+        content: input.session.systemPrompt,
       },
     ];
     for (const turn of input.session.turns) {
