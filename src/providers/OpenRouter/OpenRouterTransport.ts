@@ -16,6 +16,7 @@ import type {
   OpenRouterMessagePart,
   OpenRouterToolDefintion,
 } from "./types";
+import { openRouterChunkSchema } from "./types";
 
 export class OpenRouterTransport extends EventStreamAdapter {
   protected override createParser(options: {
@@ -67,7 +68,7 @@ export class OpenRouterTransport extends EventStreamAdapter {
           const delta = choice.delta;
           if (!delta) continue;
 
-          if (delta.content !== undefined) {
+          if (typeof delta.content === "string") {
             options.enqueue({
               type: "text-delta",
               text: delta.content,
@@ -147,11 +148,20 @@ export class OpenRouterTransport extends EventStreamAdapter {
   }
 
   private parseChunk(event: EventSourceMessage): Result<OpenRouterChunk> {
-    try {
-      return Result.Ok(JSON.parse(event.data) as OpenRouterChunk);
-    } catch {
+    const parsedJson = Result.wrap(() => JSON.parse(event.data) as unknown);
+    if (Result.isErr(parsedJson)) {
       return Result.fromCanonical("Invalid OpenRouter stream chunk");
     }
+
+    const parsedChunk = openRouterChunkSchema.safeParse(parsedJson.value);
+    if (!parsedChunk.success) {
+      return Result.fromCanonical(
+        "Invalid OpenRouter stream chunk",
+        parsedChunk.error.message,
+      );
+    }
+
+    return Result.Ok(parsedChunk.data);
   }
 
   private formatParseError(error: ParseError): string {

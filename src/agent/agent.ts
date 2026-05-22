@@ -15,7 +15,7 @@ import type { ToolResult } from "@/tools/types";
 import type { ContextManager } from "./ContextManager";
 import type { AgentDeps, AgentEvent } from "./types";
 
-const DEFAULT_MAX_ITERATIONS = 8;
+const DEFAULT_MAX_ITERATIONS = 50;
 
 export class Agent {
   constructor(

@@ -86,19 +86,29 @@ Preferred locator order:
 
 Examples:
 
-- Button named Search: { "kind": "role", "role": "button", "options": { "name": "Search" } }
-- Email field by label: { "kind": "label", "content": "Email" }
-- Search field by placeholder: { "kind": "placeholder", "content": "Search" }
-- Link named Documentation: { "kind": "role", "role": "link", "options": { "name": "Documentation" } }
-- Heading level 2 named Results: { "kind": "role", "role": "heading", "options": { "name": "Results", "level": 2 } }
+- Button named Search: { "kind": "role", "role": "button", "options": { "name": { "type": "text", "text": "Search" } } }
+- Email field by label: { "kind": "label", "content": { "type": "text", "text": "Email" } }
+- Search field by placeholder: { "kind": "placeholder", "content": { "type": "text", "text": "Search" } }
+- Link named Documentation: { "kind": "role", "role": "link", "options": { "name": { "type": "text", "text": "Documentation" } } }
+- Heading level 2 named Results: { "kind": "role", "role": "heading", "options": { "name": { "type": "text", "text": "Results" }, "level": 2 } }
+
+Text-matching locator fields use StringOrRegex objects, not plain strings. Use { "type": "text", "text": "..." } for normal text, or { "type": "regex", "pattern": "...", "flags": "i" } only when regex matching is needed. Do not add escaped quote characters to JSON property names or values; keys must be kind, role, options, name, and so on.
 
 Narrow ambiguous matches with composition:
 
-- first: choose the first match only after the ordering is observed and meaningful.
-- nth: choose a specific zero-based match only after counting or observing positions.
-- filter: restrict a broader locator by contained text or another locator.
-- and: require multiple locator conditions.
-- or: accept one of several possible locators, usually for resilient recovery.
+- first: wrap another locator as { "kind": "first", "locator": <LocatorDef> }. Choose the first match only after the ordering is observed and meaningful.
+- nth: wrap another locator as { "kind": "nth", "index": 0, "locator": <LocatorDef> }. Choose a specific zero-based match only after counting or observing positions.
+- filter: wrap another locator as { "kind": "filter", "locator": <LocatorDef>, "options": { "hasText": { "type": "text", "text": "..." } } }. Restrict a broader locator by contained text or another locator.
+- and: combine locators as { "kind": "and", "locators": [<LocatorDef>, <LocatorDef>] }. Require multiple locator conditions.
+- or: combine locators as { "kind": "or", "locators": [<LocatorDef>, <LocatorDef>] }. Accept one of several possible locators, usually for resilient recovery.
+
+Composition locators are wrappers, not properties on another locator. Do not write { "kind": "role", "first": true } or { "kind": "role", "index": 0 }. Instead, wrap the role locator inside first or nth.
+
+Composition examples:
+
+- First Search button: { "kind": "first", "locator": { "kind": "role", "role": "button", "options": { "name": { "type": "text", "text": "Search" } } } }
+- Second Search button: { "kind": "nth", "index": 1, "locator": { "kind": "role", "role": "button", "options": { "name": { "type": "text", "text": "Search" } } } }
+- Button filtered by visible text: { "kind": "filter", "locator": { "kind": "role", "role": "button" }, "options": { "hasText": { "type": "text", "text": "Search" } } }
 
 Use exact matches when needed to avoid similarly named elements. Avoid brittle CSS/XPath selectors unless no accessible locator is reliable.
 

@@ -148,4 +148,47 @@ describe("OpenRouterTransport", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test("ignores null content stream deltas", async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (_input, _init) => {
+      return streamResponse(
+        [
+          'data: {"choices":[{"delta":{"content":null}}]}',
+          'data: {"choices":[{"delta":{"content":"Hi"}}]}',
+          "data: [DONE]",
+          "",
+        ].join("\n\n"),
+      );
+    }) as typeof fetch;
+
+    try {
+      const request: ChatRequest = {
+        modelId: "model-id",
+        messages: [
+          { role: "user", content: [{ type: "text", text: "Hello" }] },
+        ],
+        tools: [],
+      };
+
+      const events = await collectEvents(
+        new OpenRouterTransport().streamChat(request, deps),
+      );
+
+      expect(events).toEqual([
+        { type: "text-delta", text: "Hi" },
+        {
+          type: "message-complete",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "Hi" }],
+            toolCalls: [],
+          },
+        },
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });

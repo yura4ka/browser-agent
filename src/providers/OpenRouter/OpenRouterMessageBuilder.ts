@@ -25,7 +25,7 @@ export class OpenRouterMessageBuilder extends AssistantMessageBuilder<
       const delta = choice.delta;
       if (!delta) continue;
 
-      if (delta.content) {
+      if (typeof delta.content === "string") {
         this.contentParts.push(delta.content);
       }
 

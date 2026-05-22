@@ -31,31 +31,59 @@ export type OpenRouterModelsResponse = z.infer<
   typeof openRouterModelsResponseSchema
 >;
 
-export type OpenRouterChunk = {
-  id?: string;
-  model?: string;
-  error?: { message?: string; code?: string | number };
-  usage?: unknown;
-  choices?: Array<{
-    index?: number;
-    finish_reason?: string | null;
-    delta?: {
-      role?: "assistant";
-      content?: string;
-      tool_calls?: OpenRouterToolCallDelta[];
-    };
-  }>;
-};
+const openRouterToolCallDeltaSchema = z
+  .object({
+    index: z.number().int().optional(),
+    id: z.string().optional(),
+    type: z.literal("function").optional(),
+    function: z
+      .object({
+        name: z.string().optional(),
+        arguments: z.string().optional(),
+      })
+      .strip()
+      .optional(),
+  })
+  .strip();
 
-export type OpenRouterToolCallDelta = {
-  index?: number;
-  id?: string;
-  type?: "function";
-  function?: {
-    name?: string;
-    arguments?: string;
-  };
-};
+export const openRouterChunkSchema = z
+  .object({
+    id: z.string().optional(),
+    model: z.string().optional(),
+    error: z
+      .object({
+        message: z.string().optional(),
+        code: z.union([z.string(), z.number()]).optional(),
+      })
+      .strip()
+      .optional(),
+    usage: z.unknown().optional(),
+    choices: z
+      .array(
+        z
+          .object({
+            index: z.number().int().optional(),
+            finish_reason: z.string().nullable().optional(),
+            delta: z
+              .object({
+                role: z.literal("assistant").optional(),
+                content: z.string().nullable().optional(),
+                tool_calls: z.array(openRouterToolCallDeltaSchema).optional(),
+              })
+              .strip()
+              .optional(),
+          })
+          .strip(),
+      )
+      .optional(),
+  })
+  .strip();
+
+export type OpenRouterChunk = z.infer<typeof openRouterChunkSchema>;
+
+export type OpenRouterToolCallDelta = z.infer<
+  typeof openRouterToolCallDeltaSchema
+>;
 export type OpenRouterMessagePart =
   | { type: "text"; text: string }
   | { type: "image_url"; image_url: { url: string } };
