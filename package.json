@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "start": "bun run index.ts",
+    "start:proxy": "NODE_EXTRA_CA_CERTS=\"$HOME/.mitmproxy/mitmproxy-ca-cert.pem\" HTTPS_PROXY=http://127.0.0.1:8080 bun run index.ts",
     "check": "bunx biome check .",
     "check:write": "bunx biome check --write .",
     "lint": "bun run check",
@@ -18,6 +19,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "chalk": "^5.6.2",
     "eventsource-parser": "^3.0.6",
     "playwright": "^1.59.1",
     "zod": "^4.3.6"
