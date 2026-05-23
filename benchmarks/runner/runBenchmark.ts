@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { AgentEvent } from "@/agent/types";
 import { AppController } from "@/app/AppController";
 import { Result } from "@/core/Result";
+import type { AgentSession } from "@/core/session";
 import { JsonSessionStore } from "@/storage/JsonSessionStore";
 import {
   formatMissingArgsError,
@@ -14,6 +15,8 @@ import { selectBenchmarkCase } from "../scenarios/manifest";
 import { RunnerConfigSchema, RunSummarySchema } from "../schemas";
 import { startBenchmarkServer } from "../server/serveBenchmark";
 import { BenchmarkConfigService } from "./BenchmarkConfigService";
+import { extractFinalAssistantText, summarizeMetrics } from "./metrics";
+import { type RunStatus, scoreBenchmarkCase } from "./scoring";
 
 type ParsedCli = {
   providerId: string;
@@ -27,8 +30,6 @@ type ParsedCli = {
   maxIterations?: number;
   outputDir: string;
 };
-
-type RunStatus = "completed" | "failed" | "timeout" | "aborted";
 
 function parseCli(args: string[]): ParsedCli {
   const requiredArgs = ["provider", "model", "site", "difficulty", "port"];
@@ -123,35 +124,6 @@ function serializeEvent(options: {
   })}\n`;
 }
 
-function summarizeMetrics(events: AgentEvent[]) {
-  const toolResults = events.filter((event) => event.type === "tool-result");
-
-  return {
-    toolCallCount: events.filter((event) => event.type === "tool-call").length,
-    failedToolCallCount: toolResults.filter((event) => !event.result.ok).length,
-    navigationAttemptCount: events.filter(
-      (event) =>
-        event.type === "tool-call" &&
-        event.call.toolName === "browser_navigate",
-    ).length,
-    screenshotCount: events.filter(
-      (event) =>
-        event.type === "tool-call" &&
-        event.call.toolName === "browser_screenshot",
-    ).length,
-    htmlReadCount: events.filter(
-      (event) =>
-        event.type === "tool-call" &&
-        event.call.toolName === "browser_get_html_content",
-    ).length,
-    ariaSnapshotCount: events.filter(
-      (event) =>
-        event.type === "tool-call" &&
-        event.call.toolName === "browser_get_aria_snapshot",
-    ).length,
-  };
-}
-
 async function run(): Promise<void> {
   const cli = parseCli(Bun.argv.slice(2));
   const config = RunnerConfigSchema.parse({
@@ -184,12 +156,14 @@ async function run(): Promise<void> {
   const runDir = join(config.outputDir, runId);
   const sessionsDir = join(runDir, "sessions");
   const eventsPath = join(runDir, "events.jsonl");
+  const scorePath = join(runDir, "score.json");
   const summaryPath = join(runDir, "summary.json");
   const startedAt = new Date();
   let status: RunStatus = "failed";
   let sequence = 0;
   const events: AgentEvent[] = [];
   const eventLogLines: string[] = [];
+  const sessionStore = new JsonSessionStore(sessionsDir);
   let handle: ReturnType<typeof startBenchmarkServer> | null = null;
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(), config.timeoutMs);
@@ -202,7 +176,7 @@ async function run(): Promise<void> {
 
     const app = new AppController({
       config: new BenchmarkConfigService(handle.entryUrl),
-      sessions: new JsonSessionStore(sessionsDir),
+      sessions: sessionStore,
     });
     await app.init();
 
@@ -246,6 +220,16 @@ async function run(): Promise<void> {
     handle?.stop();
     await Bun.write(eventsPath, eventLogLines.join(""));
 
+    const sessions = await loadSessions(sessionStore);
+    const score = scoreBenchmarkCase({
+      runId,
+      status,
+      benchmarkCase,
+      finalAnswer: extractFinalAssistantText(events),
+      interactions: handle?.capture.list() ?? [],
+    });
+    await Bun.write(scorePath, `${JSON.stringify(score, null, 2)}\n`);
+
     const finishedAt = new Date();
     const summary = RunSummarySchema.parse({
       runId,
@@ -256,7 +240,8 @@ async function run(): Promise<void> {
       startedAt: startedAt.toISOString(),
       finishedAt: finishedAt.toISOString(),
       elapsedMs: finishedAt.getTime() - startedAt.getTime(),
-      metrics: summarizeMetrics(events),
+      score,
+      metrics: summarizeMetrics(events, sessions),
     });
 
     await Bun.write(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
@@ -266,6 +251,23 @@ async function run(): Promise<void> {
   if (status !== "completed") {
     process.exitCode = 1;
   }
+}
+
+async function loadSessions(
+  sessionStore: JsonSessionStore,
+): Promise<AgentSession[]> {
+  const summariesResult = await sessionStore.listSessions();
+  if (Result.isErr(summariesResult)) return [];
+
+  const sessions: AgentSession[] = [];
+  for (const summary of summariesResult.value) {
+    const sessionResult = await sessionStore.getSession(summary.id);
+    if (Result.isOk(sessionResult) && sessionResult.value) {
+      sessions.push(sessionResult.value);
+    }
+  }
+
+  return sessions;
 }
 
 if (import.meta.main) {

@@ -85,6 +85,12 @@ Planned run artifacts include:
 | `score.json` | Total score, max score, pass/fail, and per-check results. |
 | `sessions/` | Isolated benchmark session storage for the run. |
 
+`score.json` is produced for completed and failed runs. Failed, timed-out, or aborted answer-based runs record missing final answers explicitly instead of omitting score data.
+
+Supported scoring strategies are exact normalized match, contains-all, regex, composite, and form-submission payload matching.
+
+`summary.json` includes event counts, tool call counts by tool name, failed tool call count, navigation attempts, screenshot usage, HTML/ARIA usage, token usage, and cost when session usage is available.
+
 ## Development Checks
 
 Run the repository checks before finishing benchmark work:

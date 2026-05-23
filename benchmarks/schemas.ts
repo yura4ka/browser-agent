@@ -137,6 +137,8 @@ export type ScoreCheckResult = z.infer<typeof ScoreCheckResultSchema>;
 export const ScoreOutputSchema = z.object({
   runId: z.string().min(1),
   caseId: z.string().min(1),
+  status: z.enum(["completed", "failed", "timeout", "aborted"]),
+  finalAnswer: z.string().optional(),
   totalScore: z.number().min(0),
   maxScore: z.number().positive(),
   passed: z.boolean(),
@@ -162,6 +164,12 @@ export const RunSummarySchema = z.object({
       screenshotCount: z.number().int().nonnegative().default(0),
       htmlReadCount: z.number().int().nonnegative().default(0),
       ariaSnapshotCount: z.number().int().nonnegative().default(0),
+      eventCounts: z
+        .record(z.string().min(1), z.number().int().nonnegative())
+        .default({}),
+      toolCallCountsByName: z
+        .record(z.string().min(1), z.number().int().nonnegative())
+        .default({}),
       inputTokens: z.number().int().nonnegative().optional(),
       outputTokens: z.number().int().nonnegative().optional(),
       costUsd: z.number().nonnegative().optional(),
@@ -173,6 +181,8 @@ export const RunSummarySchema = z.object({
       screenshotCount: 0,
       htmlReadCount: 0,
       ariaSnapshotCount: 0,
+      eventCounts: {},
+      toolCallCountsByName: {},
     }),
 });
 export type RunSummary = z.infer<typeof RunSummarySchema>;
