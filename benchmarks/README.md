@@ -4,7 +4,7 @@ This directory contains the in-repository benchmark suite for evaluating browser
 
 ## Current Status
 
-Phase 1 provides the foundation: directory structure, Zod schemas, package scripts, and local usage documentation. Phase 2 adds deterministic scenario serving, plain TypeScript rendering helpers, functional CSS helpers, and in-memory interaction capture. Runner execution will be implemented in a later phase.
+Phases 1 through 7 provide deterministic scenario serving, seeded benchmark cases, single-run execution, scoring, metrics, aggregation, and starter analysis tooling.
 
 ## Categories
 
@@ -79,6 +79,14 @@ bun run bench:aggregate --dir data/benchmark-runs
 ```
 
 The aggregate output is TSV grouped by provider, model, site, difficulty, and seed. It reports run count, success rate, mean normalized score, score standard deviation, median latency, tokens, and cost.
+
+Write flattened JSONL for Python or notebook analysis with:
+
+```sh
+bun run bench:aggregate --dir data/benchmark-runs --jsonl data/benchmark-runs/runs.jsonl
+```
+
+Additional analysis workflow documentation and a dependency-free Python starter live in `benchmarks/analysis/README.md`.
 
 ## Output Files
 

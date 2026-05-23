@@ -1,5 +1,5 @@
-import { readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, readdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { readOption } from "../cli";
 import { type RunSummary, RunSummarySchema } from "../schemas";
 
@@ -7,6 +7,28 @@ type Group = {
   key: string;
   runs: RunSummary[];
 };
+
+type CaseParts = {
+  site: string;
+  difficulty: string;
+  seed: string;
+};
+
+function parseCaseId(caseId: string): CaseParts {
+  const match = caseId.match(/^(.*)-(easy|medium|hard)-(\d+)$/);
+
+  if (match === null) {
+    return { site: caseId, difficulty: "unknown", seed: "unknown" };
+  }
+
+  const [, site, difficulty, seed] = match;
+
+  return {
+    site: site ?? caseId,
+    difficulty: difficulty ?? "unknown",
+    seed: seed ?? "unknown",
+  };
+}
 
 async function readSummaries(rootDir: string): Promise<RunSummary[]> {
   const entries = await readdir(rootDir, { withFileTypes: true }).catch(
@@ -31,14 +53,8 @@ function groupSummaries(summaries: RunSummary[]): Group[] {
   const groups = new Map<string, RunSummary[]>();
 
   for (const summary of summaries) {
-    const [site, difficulty, seed] = summary.caseId
-      .split("-")
-      .slice(0, -1)
-      .join("-")
-      .match(/^(.*)-(easy|medium|hard)$/)
-      ?.slice(1) ?? [summary.caseId, "unknown"];
-    const normalizedSeed = summary.caseId.split("-").at(-1) ?? "unknown";
-    const key = `${summary.providerId}\t${summary.modelId}\t${site}\t${difficulty}\t${seed ?? normalizedSeed}`;
+    const { site, difficulty, seed } = parseCaseId(summary.caseId);
+    const key = `${summary.providerId}\t${summary.modelId}\t${site}\t${difficulty}\t${seed}`;
     const values = groups.get(key) ?? [];
     values.push(summary);
     groups.set(key, values);
@@ -124,8 +140,60 @@ function printAggregate(groups: Group[]): void {
   }
 }
 
+function toJsonlRow(summary: RunSummary): Record<string, unknown> {
+  const { site, difficulty, seed } = parseCaseId(summary.caseId);
+  const normalizedScore = summary.score
+    ? summary.score.totalScore / summary.score.maxScore
+    : 0;
+
+  return {
+    runId: summary.runId,
+    caseId: summary.caseId,
+    site,
+    difficulty,
+    seed: seed === "unknown" ? seed : Number(seed),
+    providerId: summary.providerId,
+    modelId: summary.modelId,
+    status: summary.status,
+    passed: summary.score?.passed ?? false,
+    totalScore: summary.score?.totalScore ?? 0,
+    maxScore: summary.score?.maxScore ?? 0,
+    normalizedScore,
+    elapsedMs: summary.elapsedMs,
+    toolCallCount: summary.metrics.toolCallCount,
+    failedToolCallCount: summary.metrics.failedToolCallCount,
+    navigationAttemptCount: summary.metrics.navigationAttemptCount,
+    screenshotCount: summary.metrics.screenshotCount,
+    htmlReadCount: summary.metrics.htmlReadCount,
+    ariaSnapshotCount: summary.metrics.ariaSnapshotCount,
+    inputTokens: summary.metrics.inputTokens ?? 0,
+    outputTokens: summary.metrics.outputTokens ?? 0,
+    costUsd: summary.metrics.costUsd ?? 0,
+    toolCallCountsByName: summary.metrics.toolCallCountsByName,
+  };
+}
+
+async function writeJsonlExport(
+  summaries: RunSummary[],
+  outputPath: string,
+): Promise<void> {
+  await mkdir(dirname(outputPath), { recursive: true });
+  const lines = summaries.map((summary) => JSON.stringify(toJsonlRow(summary)));
+  await Bun.write(
+    outputPath,
+    `${lines.join("\n")}${lines.length > 0 ? "\n" : ""}`,
+  );
+}
+
 if (import.meta.main) {
-  const rootDir = readOption(Bun.argv.slice(2), "dir") ?? "data/benchmark-runs";
+  const args = Bun.argv.slice(2);
+  const rootDir = readOption(args, "dir") ?? "data/benchmark-runs";
+  const jsonlPath = readOption(args, "jsonl");
   const summaries = await readSummaries(rootDir);
+
+  if (jsonlPath !== undefined) {
+    await writeJsonlExport(summaries, jsonlPath);
+  }
+
   printAggregate(groupSummaries(summaries));
 }
