@@ -1,4 +1,5 @@
-import { link, type RenderContext } from "../server/renderKit";
+import { getLongContextVariant } from "../scenarios/variants";
+import { escapeHtml, link, type RenderContext } from "../server/renderKit";
 import type { ScenarioSite } from "../server/types";
 import { contextFromCase, htmlResponse, notFoundResponse } from "./shared";
 
@@ -21,6 +22,7 @@ function renderEntry(ctx: RenderContext): string {
 }
 
 function renderBrief(ctx: RenderContext): string {
+  const variant = getLongContextVariant(ctx.seed);
   const hardIntro =
     ctx.difficulty === "hard"
       ? "<p>Several obsolete values appear below; use only the active incident appendix.</p>"
@@ -36,9 +38,9 @@ function renderBrief(ctx: RenderContext): string {
   ${fillerSections}
   <section id="active-incident">
     <h2>Active Incident Appendix</h2>
-    <p>The harbor inspection window is <strong>Tuesday 09:30 UTC</strong>.</p>
-    <p>The active sensor threshold is <strong>18.7 psi</strong>.</p>
-    <p>The assigned backup operator is <strong>Mira Sol</strong>.</p>
+    <p>The harbor inspection window is <strong>${escapeHtml(variant.harborWindow)}</strong>.</p>
+    <p>The active sensor threshold is <strong>${escapeHtml(variant.sensorThreshold)}</strong>.</p>
+    <p>The assigned backup operator is <strong>${escapeHtml(variant.backupOperator)}</strong>.</p>
   </section>
   ${distractors}
 </main>`;

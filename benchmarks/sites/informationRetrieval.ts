@@ -1,5 +1,10 @@
 import {
+  getInformationRetrievalVariant,
+  getProjectDistractors,
+} from "../scenarios/variants";
+import {
   button,
+  escapeHtml,
   link,
   type RenderContext,
   validationMessage,
@@ -8,12 +13,13 @@ import type { ScenarioSite } from "../server/types";
 import { contextFromCase, htmlResponse, notFoundResponse } from "./shared";
 
 function renderEntry(ctx: RenderContext): string {
+  const variant = getInformationRetrievalVariant(ctx.seed);
   const routeLabel =
     ctx.difficulty === "easy" ? "Project index" : "Operations notes";
 
   return `<main class="stack">
   <h1>Benchmark Preview</h1>
-  <p>Goal: find and report the release code for Project Heron.</p>
+  <p>Goal: find and report the release code for Project ${escapeHtml(variant.project)}.</p>
   <nav class="stack">
     ${link(ctx, { href: "/projects", label: routeLabel, id: "project-link" })}
     ${link(ctx, { href: "/archive", label: "Archive distractors", id: "archive-link" })}
@@ -23,15 +29,23 @@ function renderEntry(ctx: RenderContext): string {
 }
 
 function renderProjects(ctx: RenderContext): string {
+  const variant = getInformationRetrievalVariant(ctx.seed);
   const detailsLink = link(ctx, {
-    href: "/projects/heron",
-    label: "Project Heron details",
-    id: "heron-details-link",
+    href: "/projects/target",
+    label: `Project ${variant.project} details`,
+    id: "target-details-link",
   });
+  const distractorCodes = getProjectDistractors(ctx.seed);
   const distractors =
     ctx.difficulty === "easy"
       ? ""
-      : "<li>Project Ibis: IBIS-219</li><li>Project Kite: KITE-771</li>";
+      : distractorCodes
+          .slice(0, 2)
+          .map(
+            (code, index) =>
+              `<li>Project ${index + 1} archive: ${escapeHtml(code)}</li>`,
+          )
+          .join("");
 
   return `<main class="stack">
   <h1>Projects</h1>
@@ -43,15 +57,16 @@ function renderProjects(ctx: RenderContext): string {
 </main>`;
 }
 
-function renderHeron(ctx: RenderContext): string {
+function renderTargetProject(ctx: RenderContext): string {
+  const variant = getInformationRetrievalVariant(ctx.seed);
   const codeLabel =
     ctx.difficulty === "hard" ? "Deployment reference" : "Release code";
 
   return `<main class="stack">
-  <h1>Project Heron</h1>
-  <p>${codeLabel}: <strong>HERON-042</strong></p>
+  <h1>Project ${escapeHtml(variant.project)}</h1>
+  <p>${codeLabel}: <strong>${escapeHtml(variant.code)}</strong></p>
   <form method="post" action="/capture" class="stack">
-    <input type="hidden" name="releaseCode" value="HERON-042">
+    <input type="hidden" name="releaseCode" value="${escapeHtml(variant.code)}">
     ${button(ctx, { label: "Record viewed code", type: "submit", id: "record-code" })}
   </form>
 </main>`;
@@ -93,8 +108,8 @@ export const informationRetrievalSite: ScenarioSite = {
       return htmlResponse("Projects", renderProjects(ctx), ctx);
     }
 
-    if (path === "/projects/heron") {
-      return htmlResponse("Project Heron", renderHeron(ctx), ctx);
+    if (path === "/projects/target") {
+      return htmlResponse("Project Details", renderTargetProject(ctx), ctx);
     }
 
     if (path === "/archive") {

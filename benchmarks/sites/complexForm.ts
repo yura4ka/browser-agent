@@ -1,6 +1,8 @@
+import { getComplexFormVariant, getRegionOptions } from "../scenarios/variants";
 import {
   button,
   checkbox,
+  escapeHtml,
   type RenderContext,
   radioGroup,
   select,
@@ -11,6 +13,7 @@ import type { ScenarioSite } from "../server/types";
 import { contextFromCase, htmlResponse, notFoundResponse } from "./shared";
 
 function renderEntry(ctx: RenderContext): string {
+  const variant = getComplexFormVariant(ctx.seed);
   const intro =
     ctx.difficulty === "easy"
       ? "Use the labels beside each field."
@@ -19,7 +22,7 @@ function renderEntry(ctx: RenderContext): string {
   return `<main class="stack">
   <h1>Dispatch Request</h1>
   <p>${intro}</p>
-  <p>Target values: contact Avery Stone, urgent priority, north harbor region, and confirmed checklist.</p>
+  <p>Target values: contact ${escapeHtml(variant.contactName)}, ${escapeHtml(variant.priority)} priority, ${escapeHtml(variant.regionLabel.toLowerCase())} region, and confirmed checklist.</p>
   <form method="post" action="/submit" class="stack">
     ${textInput(ctx, { name: "contactName", label: "Contact name", required: true })}
     ${radioGroup(ctx, {
@@ -33,10 +36,7 @@ function renderEntry(ctx: RenderContext): string {
     ${select(ctx, {
       name: "region",
       label: ctx.difficulty === "hard" ? "Zone" : "Region",
-      values: [
-        { value: "south-yard", label: "South Yard" },
-        { value: "north-harbor", label: "North Harbor" },
-      ],
+      values: getRegionOptions(ctx.seed),
     })}
     ${checkbox(ctx, { name: "confirmChecklist", label: "Checklist confirmed" })}
     ${validationMessage({ id: "form-error", message: "All target fields are required.", hidden: ctx.difficulty === "easy" })}

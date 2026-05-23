@@ -38,19 +38,13 @@ bun run bench:serve --site information-retrieval --difficulty easy --seed 0 --po
 
 Then open `http://localhost:3012/` manually. Manual preview must not run the agent, create sessions, or write benchmark result artifacts.
 
-The initial previewable cases are all combinations below with seed `0`:
+Previewable cases are all combinations below with seeds `0`, `1`, and `2`:
 
-| Site | Difficulty | Seed |
+| Site | Difficulty | Seeds |
 | --- | --- | --- |
-| `information-retrieval` | `easy` | `0` |
-| `information-retrieval` | `medium` | `0` |
-| `information-retrieval` | `hard` | `0` |
-| `long-context` | `easy` | `0` |
-| `long-context` | `medium` | `0` |
-| `long-context` | `hard` | `0` |
-| `complex-form` | `easy` | `0` |
-| `complex-form` | `medium` | `0` |
-| `complex-form` | `hard` | `0` |
+| `information-retrieval` | `easy`, `medium`, `hard` | `0`, `1`, `2` |
+| `long-context` | `easy`, `medium`, `hard` | `0`, `1`, `2` |
+| `complex-form` | `easy`, `medium`, `hard` | `0`, `1`, `2` |
 
 Captured form interactions for the active preview are available at `http://localhost:3012/capture?format=json`.
 
@@ -73,6 +67,18 @@ Useful optional arguments:
 | `--output-dir` | `data/benchmark-runs` | Parent directory for isolated run artifacts. |
 
 The runner injects a benchmark-only config where `allowedUrls` contains exactly the selected entry URL, starts the selected site in-process, and stores sessions under `<run-dir>/sessions` instead of normal `data/sessions`.
+
+## Repetitions And Aggregation
+
+`bench:run` intentionally executes exactly one run. To run repetitions or matrices, invoke it repeatedly from a shell script or external orchestration and vary `--site`, `--difficulty`, `--seed`, model, or provider per command.
+
+Aggregate existing run directories with:
+
+```sh
+bun run bench:aggregate --dir data/benchmark-runs
+```
+
+The aggregate output is TSV grouped by provider, model, site, difficulty, and seed. It reports run count, success rate, mean normalized score, score standard deviation, median latency, tokens, and cost.
 
 ## Output Files
 

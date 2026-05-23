@@ -8,6 +8,7 @@
     "start:proxy": "NODE_EXTRA_CA_CERTS=\"$HOME/.mitmproxy/mitmproxy-ca-cert.pem\" HTTPS_PROXY=http://127.0.0.1:8080 bun run index.ts",
     "bench:serve": "bun run benchmarks/server/serveBenchmark.ts",
     "bench:run": "bun run benchmarks/runner/runBenchmark.ts",
+    "bench:aggregate": "bun run benchmarks/analysis/aggregateRuns.ts",
     "check": "bunx biome check .",
     "check:write": "bunx biome check --write .",
     "lint": "bun run check",
