@@ -35,4 +35,35 @@ describe("benchmark manifest seeds", () => {
       seededShuffle(["a", "b", "c"], 1),
     );
   });
+
+  test("complex form cases score the full multi-step payload", () => {
+    const formCase = benchmarkManifest.cases.find(
+      (benchmarkCase) => benchmarkCase.id === "complex-form-hard-2",
+    );
+
+    expect(formCase).toBeDefined();
+    expect(formCase?.scoring).toHaveLength(1);
+
+    const scoring = formCase?.scoring[0];
+    expect(scoring?.type).toBe("form-submission");
+
+    if (scoring?.type !== "form-submission") {
+      throw new Error("Expected form-submission scoring.");
+    }
+
+    expect(scoring.points).toBe(10);
+    expect(scoring.expectedFields).toEqual({
+      contactName: "Morgan Lee",
+      contactEmail: "morgan.lee@example.test",
+      accessCode: "WD-608",
+      incidentType: "safety-review",
+      priority: "urgent",
+      region: "west-dock",
+      responseWindow: "same-shift",
+      notifyBy: "sms",
+      confirmChecklist: "on",
+      acknowledgeSla: "on",
+      finalConfirm: "on",
+    });
+  });
 });

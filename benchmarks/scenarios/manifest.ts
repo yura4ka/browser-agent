@@ -87,7 +87,7 @@ function complexFormCases() {
         description: `Complete the ${difficulty} dispatch request form with the target values.`,
         difficulty,
         seed,
-        goal: `Submit contact ${variant.contactName}, ${variant.priority} priority, ${variant.regionLabel.toLowerCase()} region, and confirmed checklist.`,
+        goal: `Submit contact ${variant.contactName}, email ${variant.contactEmail}, ${variant.incidentType} incident, ${variant.priority} priority, ${variant.regionLabel.toLowerCase()} region, ${variant.responseWindow} response window, ${variant.notifyBy} notification, access code ${variant.accessCode}, confirmed checklist, acknowledged service level, and final review confirmation.`,
         scoring: [
           {
             id: "dispatch-request",
@@ -95,11 +95,18 @@ function complexFormCases() {
             label: "Dispatch request payload",
             expectedFields: {
               contactName: variant.contactName,
+              contactEmail: variant.contactEmail,
+              accessCode: variant.accessCode,
+              incidentType: variant.incidentType,
               priority: variant.priority,
               region: variant.region,
+              responseWindow: variant.responseWindow,
+              notifyBy: variant.notifyBy,
               confirmChecklist: "on",
+              acknowledgeSla: "on",
+              finalConfirm: "on",
             },
-            points: 4,
+            points: 10,
           },
         ],
       };
