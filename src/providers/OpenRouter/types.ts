@@ -45,6 +45,15 @@ const openRouterToolCallDeltaSchema = z
   })
   .strip();
 
+const openRouterUsageSchema = z
+  .object({
+    prompt_tokens: z.number().int().nonnegative(),
+    completion_tokens: z.number().int().nonnegative(),
+    total_tokens: z.number().int().nonnegative(),
+    cost: z.number().nonnegative().optional(),
+  })
+  .strip();
+
 export const openRouterChunkSchema = z
   .object({
     id: z.string().optional(),
@@ -56,7 +65,7 @@ export const openRouterChunkSchema = z
       })
       .strip()
       .optional(),
-    usage: z.unknown().optional(),
+    usage: openRouterUsageSchema.optional(),
     choices: z
       .array(
         z
@@ -79,6 +88,7 @@ export const openRouterChunkSchema = z
   .strip();
 
 export type OpenRouterChunk = z.infer<typeof openRouterChunkSchema>;
+export type OpenRouterUsage = z.infer<typeof openRouterUsageSchema>;
 
 export type OpenRouterToolCallDelta = z.infer<
   typeof openRouterToolCallDeltaSchema

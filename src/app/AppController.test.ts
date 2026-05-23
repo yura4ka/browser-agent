@@ -3,7 +3,7 @@ import type { AgentEvent } from "@/agent/types";
 import type { ConfigService, UserConfig } from "@/core/config";
 import type { AssistantMessage } from "@/core/messages";
 import { Result } from "@/core/Result";
-import type { AgentSession } from "@/core/session";
+import { type AgentSession, EMPTY_AGENT_USAGE } from "@/core/session";
 import { SYSTEM_PROMPT } from "@/core/systemPrompt";
 import { LLMProvider } from "@/providers/LLMProvider";
 import { ProviderManager } from "@/providers/ProviderManager";
@@ -79,6 +79,7 @@ class TestSessionStore implements SessionStore {
       systemPrompt: input.systemPrompt ?? "",
       selectedModel: input.selectedModel,
       turns: input.turns ?? [],
+      usage: input.usage ?? EMPTY_AGENT_USAGE,
     });
     this.sessions.set(session.id, session);
     return Result.Ok(session);
@@ -158,6 +159,7 @@ function createSession(input: Partial<AgentSession> = {}): AgentSession {
     systemPrompt: "System prompt",
     selectedModel: { providerId: "test-provider", modelId: "a-model" },
     turns: [],
+    usage: EMPTY_AGENT_USAGE,
     ...input,
   };
 }

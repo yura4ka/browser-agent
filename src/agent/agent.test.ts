@@ -3,7 +3,7 @@ import z from "zod";
 import type { UserConfig } from "@/core/config";
 import type { AssistantMessage, UserMessage } from "@/core/messages";
 import { Result } from "@/core/Result";
-import type { AgentSession } from "@/core/session";
+import { type AgentSession, EMPTY_AGENT_USAGE } from "@/core/session";
 import { LLMProvider } from "@/providers/LLMProvider";
 import { ProviderManager } from "@/providers/ProviderManager";
 import type {
@@ -85,6 +85,7 @@ function createSession(input: Partial<AgentSession> = {}): AgentSession {
       modelId: "test-model",
     },
     turns: [],
+    usage: EMPTY_AGENT_USAGE,
     ...input,
   };
 }
@@ -160,7 +161,16 @@ describe("Agent", () => {
     const { providers, requests } = await createProviderManager([
       [
         { type: "text-delta", text: "Hello" },
-        { type: "message-complete", message: assistantMessage("Hello") },
+        {
+          type: "message-complete",
+          message: assistantMessage("Hello"),
+          usage: {
+            cost: 0.001,
+            inputTokens: 10,
+            outputTokens: 3,
+            totalTokens: 13,
+          },
+        },
       ],
     ]);
     const agent = createAgent(providers);
@@ -184,6 +194,12 @@ describe("Agent", () => {
       userMessage("Hi"),
       assistantMessage("Hello"),
     ]);
+    expect(session.usage).toEqual({
+      cost: 0.001,
+      inputTokens: 10,
+      outputTokens: 3,
+      totalTokens: 13,
+    });
   });
 
   test("executes tool calls and continues with tool results in context", async () => {

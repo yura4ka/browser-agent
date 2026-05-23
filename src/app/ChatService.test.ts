@@ -3,7 +3,11 @@ import type { AgentDeps, AgentEvent } from "@/agent/types";
 import type { ConfigService, UserConfig } from "@/core/config";
 import type { UserMessage } from "@/core/messages";
 import { Result } from "@/core/Result";
-import type { AgentSession, AgentTurn } from "@/core/session";
+import {
+  type AgentSession,
+  type AgentTurn,
+  EMPTY_AGENT_USAGE,
+} from "@/core/session";
 import type {
   AgentSessionSummary,
   CreateSessionInput,
@@ -89,6 +93,7 @@ function createSession(input: Partial<AgentSession> = {}): AgentSession {
       modelId: "test-model",
     },
     turns: [],
+    usage: EMPTY_AGENT_USAGE,
     ...input,
   };
 }
@@ -221,7 +226,7 @@ describe("ChatService", () => {
       async *runTurn(deps: AgentDeps, _message: UserMessage) {
         deps.session.turns.push(completedTurn);
         if (deps.session.id === "never") {
-          yield { type: "status" as const, message: "unused" };
+          yield { type: "sse-comment" as const, content: "unused" };
         }
         throw new Error("boom");
       },

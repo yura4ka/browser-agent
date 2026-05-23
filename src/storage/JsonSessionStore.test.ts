@@ -3,7 +3,11 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Result } from "@/core/Result";
-import type { AgentSession, AgentTurn } from "@/core/session";
+import {
+  type AgentSession,
+  type AgentTurn,
+  EMPTY_AGENT_USAGE,
+} from "@/core/session";
 import { SYSTEM_PROMPT } from "@/core/systemPrompt";
 import { JsonSessionStore } from "./JsonSessionStore";
 
@@ -47,6 +51,7 @@ function createSession(input: Partial<AgentSession> = {}): AgentSession {
     systemPrompt: "System prompt",
     selectedModel: { providerId: "openrouter", modelId: "model-id" },
     turns: [],
+    usage: EMPTY_AGENT_USAGE,
     ...input,
   };
 }
@@ -68,6 +73,7 @@ describe("JsonSessionStore", () => {
 
     expect(getResult.value).toEqual(createResult.value);
     expect(getResult.value?.systemPrompt).toBe(SYSTEM_PROMPT);
+    expect(getResult.value?.usage).toEqual(EMPTY_AGENT_USAGE);
   });
 
   test("saves and lists session summaries sorted by latest turn", async () => {

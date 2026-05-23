@@ -30,6 +30,20 @@ export const agentTurnSchema = z.strictObject({
   messages: z.array(canonicalMessageSchema),
 });
 
+export const agentUsageSchema = z.strictObject({
+  cost: z.number().nonnegative(),
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  totalTokens: z.number().int().nonnegative(),
+});
+
+export const EMPTY_AGENT_USAGE = {
+  cost: 0,
+  inputTokens: 0,
+  outputTokens: 0,
+  totalTokens: 0,
+} satisfies z.infer<typeof agentUsageSchema>;
+
 export const agentSessionSchema = z.strictObject({
   id: z.string(),
   title: z.string(),
@@ -39,8 +53,10 @@ export const agentSessionSchema = z.strictObject({
     modelId: z.string(),
   }),
   turns: z.array(agentTurnSchema),
+  usage: agentUsageSchema.default(EMPTY_AGENT_USAGE),
 });
 
 export type AgentTurnStatus = z.infer<typeof agentTurnStatusSchema>;
 export type AgentTurn = z.infer<typeof agentTurnSchema>;
+export type AgentUsage = z.infer<typeof agentUsageSchema>;
 export type AgentSession = z.infer<typeof agentSessionSchema>;

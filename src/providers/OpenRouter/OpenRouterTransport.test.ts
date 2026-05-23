@@ -212,6 +212,55 @@ describe("OpenRouterTransport", () => {
     }
   });
 
+  test("maps final OpenRouter usage chunk", async () => {
+    const originalFetch = globalThis.fetch;
+
+    globalThis.fetch = (async (_input, _init) => {
+      return streamResponse(
+        [
+          'data: {"choices":[{"delta":{"content":"Hi"},"finish_reason":"stop"}]}',
+          'data: {"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":4,"total_tokens":14,"cost":0.00014}}',
+          "data: [DONE]",
+          "",
+        ].join("\n\n"),
+      );
+    }) as typeof fetch;
+
+    try {
+      const request: ChatRequest = {
+        modelId: "model-id",
+        messages: [
+          { role: "user", content: [{ type: "text", text: "Hello" }] },
+        ],
+        tools: [],
+      };
+
+      const events = await collectEvents(
+        new OpenRouterTransport().streamChat(request, deps),
+      );
+
+      expect(events).toEqual([
+        { type: "text-delta", text: "Hi" },
+        {
+          type: "message-complete",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "Hi" }],
+            toolCalls: [],
+          },
+          usage: {
+            cost: 0.00014,
+            inputTokens: 10,
+            outputTokens: 4,
+            totalTokens: 14,
+          },
+        },
+      ]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test("adds cache control to the first eligible system prompt", async () => {
     const originalFetch = globalThis.fetch;
     let body: unknown;

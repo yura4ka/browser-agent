@@ -43,10 +43,17 @@ export type ModelDescriptor = {
 
 export type SelectedModel = { provider: LLMProvider; model: ModelDescriptor };
 
+export type LLMUsage = {
+  cost: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
+
 export type LLMStreamEvent =
   | { type: "text-delta"; text: string }
   | { type: "tool-call-delta"; call: ToolCallDelta }
-  | { type: "message-complete"; message: AssistantMessage }
+  | { type: "message-complete"; message: AssistantMessage; usage?: LLMUsage }
   | { type: "sse-comment"; content: string }
   | { type: "error"; error: string };
 

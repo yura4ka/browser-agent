@@ -1,7 +1,11 @@
 import { mkdir, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { Result } from "@/core/Result";
-import { type AgentSession, agentSessionSchema } from "@/core/session";
+import {
+  type AgentSession,
+  agentSessionSchema,
+  EMPTY_AGENT_USAGE,
+} from "@/core/session";
 import { SYSTEM_PROMPT } from "@/core/systemPrompt";
 import type {
   AgentSessionSummary,
@@ -21,6 +25,7 @@ export class JsonSessionStore implements SessionStore {
       systemPrompt: input.systemPrompt ?? SYSTEM_PROMPT,
       selectedModel: input.selectedModel,
       turns: input.turns ?? [],
+      usage: input.usage ?? EMPTY_AGENT_USAGE,
     };
 
     const parsed = agentSessionSchema.safeParse(session);

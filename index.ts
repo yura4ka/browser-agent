@@ -3,7 +3,7 @@ import type { AgentEvent } from "@/agent/types";
 import { AppController } from "@/app/AppController";
 import type { CanonicalMessage, ToolCall } from "@/core/messages";
 import { Result } from "@/core/Result";
-import type { AgentSession } from "@/core/session";
+import type { AgentSession, AgentUsage } from "@/core/session";
 import type { ModelDescriptor, ProviderDescriptor } from "@/providers/types";
 import type { AgentSessionSummary } from "@/storage/SessionStore";
 import type { ToolResult } from "@/tools/types";
@@ -283,6 +283,7 @@ async function selectSession(
   writeLine(chalk.bold(`Session: ${result.value.title}`));
   printCurrentModel();
   renderHistory(result.value);
+  printSessionUsage(result.value);
 }
 
 function startNewSession(): void {
@@ -323,6 +324,7 @@ function startChatTurn(input: string): void {
       }
     } finally {
       if (assistantLineOpen) write("\n\n");
+      await printSelectedSessionUsage();
       printTurnMetadata(performance.now() - startedAt);
       if (activeTurn?.abortController === abortController) activeTurn = null;
       if (!isExiting) writePrompt();
@@ -497,6 +499,35 @@ function printTurnMetadata(elapsedMs: number): void {
       )}`,
     ),
   );
+}
+
+async function printSelectedSessionUsage(): Promise<void> {
+  const result = await app.getSelectedSession();
+  if (Result.isErr(result)) {
+    writeError(result.error.message, result.error.hint);
+    return;
+  }
+
+  if (!result.value) return;
+  printSessionUsage(result.value);
+}
+
+function printSessionUsage(session: AgentSession): void {
+  writeLine(chalk.dim(`usage: ${formatUsage(session.usage)}`));
+}
+
+function formatUsage(usage: AgentUsage): string {
+  return [
+    `${usage.totalTokens} tokens`,
+    `${formatCost(usage.cost)} spent`,
+  ].join(" | ");
+}
+
+function formatCost(cost: number): string {
+  if (!Number.isFinite(cost)) return "unknown";
+  if (cost === 0) return "0";
+  if (cost < 0.000001) return cost.toExponential(2);
+  return cost.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function getSelectedItem<T>(input: string, items: T[]): T | undefined {

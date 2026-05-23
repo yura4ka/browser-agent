@@ -8,7 +8,7 @@ import type {
 import { type CanonicalError, Result } from "@/core/Result";
 import type { AgentSession, AgentTurnStatus } from "@/core/session";
 import type { ProviderManager } from "@/providers/ProviderManager";
-import type { SelectedModel } from "@/providers/types";
+import type { LLMUsage, SelectedModel } from "@/providers/types";
 import type { BrowserService } from "@/services/browser/BrowserService";
 import type { ToolManager } from "@/tools/ToolManager";
 import type { ToolResult } from "@/tools/types";
@@ -77,7 +77,11 @@ export class Agent {
           return;
         }
 
-        const assistantMessage = assistantResult.value;
+        const { message: assistantMessage, usage } = assistantResult.value;
+        if (usage) {
+          this.addUsage(deps.session, usage);
+        }
+
         turnMessages.push(assistantMessage);
         messages = [...messages, assistantMessage];
 
@@ -171,7 +175,11 @@ export class Agent {
     selected: SelectedModel,
     deps: AgentDeps,
     messages: CanonicalMessage[],
-  ): AsyncGenerator<AgentEvent, Result<AssistantMessage>, unknown> {
+  ): AsyncGenerator<
+    AgentEvent,
+    Result<{ message: AssistantMessage; usage?: LLMUsage }>,
+    unknown
+  > {
     for await (const event of selected.provider.streamChat(
       {
         modelId: selected.model.id,
@@ -193,7 +201,11 @@ export class Agent {
       }
 
       if (event.type === "message-complete") {
-        return Result.Ok(event.message);
+        if (event.usage) {
+          return Result.Ok({ message: event.message, usage: event.usage });
+        }
+
+        return Result.Ok({ message: event.message });
       }
 
       if (event.type === "error") {
@@ -204,6 +216,15 @@ export class Agent {
     return Result.fromCanonical(
       "Provider stream ended without a completed message",
     );
+  }
+
+  private addUsage(session: AgentSession, usage: LLMUsage): void {
+    session.usage = {
+      cost: session.usage.cost + usage.cost,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      totalTokens: usage.totalTokens,
+    };
   }
 
   private appendTurn(

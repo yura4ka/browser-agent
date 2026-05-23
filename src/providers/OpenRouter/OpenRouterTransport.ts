@@ -7,7 +7,12 @@ import type { CanonicalMessage, MessagePart, ToolCall } from "@/core/messages";
 import { Result } from "@/core/Result";
 import type { ToolDefinition } from "@/tools/types";
 import { EventStreamAdapter } from "../transportAdapters/EventStreamAdapter";
-import type { ChatRequest, LLMStreamEvent, ProviderDeps } from "../types";
+import type {
+  ChatRequest,
+  LLMStreamEvent,
+  LLMUsage,
+  ProviderDeps,
+} from "../types";
 import { OpenRouterMessageBuilder } from "./OpenRouterMessageBuilder";
 import type {
   OpenRouterAssistantMessage,
@@ -16,6 +21,7 @@ import type {
   OpenRouterMessagePart,
   OpenRouterSystemMessage,
   OpenRouterToolDefintion,
+  OpenRouterUsage,
 } from "./types";
 import { openRouterChunkSchema } from "./types";
 
@@ -24,15 +30,18 @@ export class OpenRouterTransport extends EventStreamAdapter {
     enqueue: (event: LLMStreamEvent) => void;
   }) {
     let streamClosed = false;
+    let usage: LLMUsage | undefined;
     const messageBuilder = new OpenRouterMessageBuilder();
 
     const finalize = () => {
       if (streamClosed) return;
       streamClosed = true;
-      options.enqueue({
+      const event: LLMStreamEvent = {
         type: "message-complete",
         message: messageBuilder.finalize(),
-      });
+      };
+      if (usage) event.usage = usage;
+      options.enqueue(event);
     };
 
     const fail = (error: string) => {
@@ -60,6 +69,10 @@ export class OpenRouterTransport extends EventStreamAdapter {
         }
 
         const chunk = chunkResult.value;
+        if (chunk.usage) {
+          usage = this.mapUsage(chunk.usage);
+        }
+
         if (chunk.error) {
           fail(chunk.error.message ?? "Stream error");
           return;
@@ -84,10 +97,7 @@ export class OpenRouterTransport extends EventStreamAdapter {
           }
         }
 
-        const finishReason = messageBuilder.applyChunk(chunk);
-        if (finishReason !== null) {
-          finalize();
-        }
+        messageBuilder.applyChunk(chunk);
       },
       onComment: (comment) => {
         if (streamClosed) return;
@@ -184,6 +194,15 @@ export class OpenRouterTransport extends EventStreamAdapter {
     }
 
     return `SSE parse error: ${String(error.type)}`;
+  }
+
+  private mapUsage(usage: OpenRouterUsage): LLMUsage {
+    return {
+      cost: usage.cost ?? 0,
+      inputTokens: usage.prompt_tokens,
+      outputTokens: usage.completion_tokens,
+      totalTokens: usage.total_tokens,
+    };
   }
 
   private shouldCacheSystemPrompt(
