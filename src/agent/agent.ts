@@ -187,6 +187,11 @@ export class Agent {
         continue;
       }
 
+      if (event.type === "sse-comment") {
+        yield { type: "sse-comment", content: event.content };
+        continue;
+      }
+
       if (event.type === "message-complete") {
         return Result.Ok(event.message);
       }

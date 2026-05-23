@@ -11,9 +11,9 @@ export type AgentDeps = {
 };
 
 export type AgentEvent =
-  | { type: "status"; message: string }
   | { type: "assistant-text"; text: string }
   | { type: "tool-call"; call: ToolCall }
   | { type: "tool-result"; callId: string; result: ToolResult }
+  | { type: "sse-comment"; content: string }
   | { type: "error"; error: string }
   | { type: "done" };

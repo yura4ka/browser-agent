@@ -337,8 +337,8 @@ function handleAgentEvent(
   toolCalls: Map<string, ToolCall>,
 ): void {
   switch (event.type) {
-    case "status":
-      writeLine(chalk.dim(event.message));
+    case "sse-comment":
+      writeLine(chalk.dim(event.content));
       return;
     case "tool-call":
       toolCalls.set(event.call.callId, event.call);

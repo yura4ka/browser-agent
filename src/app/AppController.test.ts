@@ -14,6 +14,7 @@ import type {
   SessionStore,
 } from "@/storage/SessionStore";
 import { AppController } from "./AppController";
+import type { ChatService } from "./ChatService";
 
 const config: UserConfig = {
   env: {},
@@ -27,7 +28,7 @@ const config: UserConfig = {
 const configService = {
   init: async () => undefined,
   get: () => config,
-} satisfies Pick<ConfigService, "get" | "init">;
+} as ConfigService;
 
 const testModels: ModelDescriptor[] = [
   {
@@ -144,7 +145,7 @@ function createController(input: {
     config: configService,
     providers: input.providers,
     sessions,
-    chatService,
+    chatService: chatService as unknown as ChatService,
   });
 
   return { controller, sessions, chatService };
