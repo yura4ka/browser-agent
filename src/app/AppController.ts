@@ -132,7 +132,11 @@ export class AppController {
     return this.sessions.getSession(this.selectedSessionId);
   }
 
-  async *chat(text: string, signal?: AbortSignal): AsyncGenerator<AgentEvent> {
+  async *chat(
+    text: string,
+    signal?: AbortSignal,
+    options: { maxIterations?: number } = {},
+  ): AsyncGenerator<AgentEvent> {
     const abortController = new AbortController();
     const cleanup = this.forwardAbort(signal, abortController);
 
@@ -152,6 +156,7 @@ export class AppController {
         sessionId.value,
         text,
         abortController.signal,
+        options,
       )) {
         yield event;
       }

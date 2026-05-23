@@ -56,13 +56,23 @@ Captured form interactions for the active preview are available at `http://local
 
 ## Single Run
 
-Once Phase 4 is implemented, execute exactly one benchmark run with:
+Execute exactly one benchmark run with:
 
 ```sh
 bun run bench:run --provider openrouter --model <model-id> --site information-retrieval --difficulty easy --seed 0 --port 3012
 ```
 
 The runner should write one isolated run directory under `data/benchmark-runs/`. Larger matrices and repeated experiments should invoke the single-run command repeatedly from external orchestration.
+
+Useful optional arguments:
+
+| Argument | Default | Purpose |
+| --- | --- | --- |
+| `--timeout-ms` | `120000` | Wall-clock timeout for the agent run. |
+| `--max-iterations` | agent default | Optional agent iteration cap. |
+| `--output-dir` | `data/benchmark-runs` | Parent directory for isolated run artifacts. |
+
+The runner injects a benchmark-only config where `allowedUrls` contains exactly the selected entry URL, starts the selected site in-process, and stores sessions under `<run-dir>/sessions` instead of normal `data/sessions`.
 
 ## Output Files
 
