@@ -99,7 +99,7 @@ export const RunnerConfigSchema = z
     difficulty: DifficultySchema,
     seed: z.number().int().nonnegative().optional(),
     caseId: z.string().min(1).optional(),
-    port: z.number().int().min(1).max(65535).default(3012),
+    port: z.number().int().min(0).max(65535).default(3012),
     timeoutMs: z.number().int().positive().default(120_000),
     outputDir: z.string().min(1).default("data/benchmark-runs"),
   })

@@ -31,6 +31,20 @@ type ParsedCli = {
   outputDir: string;
 };
 
+type BenchmarkApp = Pick<AppController, "chat" | "init" | "selectModel">;
+
+export type RunBenchmarkDeps = {
+  createApp?: (options: {
+    entryUrl: string;
+    sessionStore: JsonSessionStore;
+  }) => BenchmarkApp;
+};
+
+export type RunBenchmarkResult = {
+  runDir: string;
+  status: RunStatus;
+};
+
 function parseCli(args: string[]): ParsedCli {
   const requiredArgs = ["provider", "model", "site", "difficulty", "port"];
   const missing = missingRequiredArgs(args, requiredArgs);
@@ -124,8 +138,11 @@ function serializeEvent(options: {
   })}\n`;
 }
 
-async function run(): Promise<void> {
-  const cli = parseCli(Bun.argv.slice(2));
+export async function runBenchmark(
+  args: string[],
+  deps: RunBenchmarkDeps = {},
+): Promise<RunBenchmarkResult> {
+  const cli = parseCli(args);
   const config = RunnerConfigSchema.parse({
     providerId: cli.providerId,
     modelId: cli.modelId,
@@ -174,10 +191,12 @@ async function run(): Promise<void> {
     handle = startBenchmarkServer({ benchmarkCase, port: config.port });
     await fetch(handle.entryUrl);
 
-    const app = new AppController({
-      config: new BenchmarkConfigService(handle.entryUrl),
-      sessions: sessionStore,
-    });
+    const app = deps.createApp
+      ? deps.createApp({ entryUrl: handle.entryUrl, sessionStore })
+      : new AppController({
+          config: new BenchmarkConfigService(handle.entryUrl),
+          sessions: sessionStore,
+        });
     await app.init();
 
     const selectResult = app.selectModel(config.providerId, config.modelId);
@@ -247,10 +266,7 @@ async function run(): Promise<void> {
     await Bun.write(summaryPath, `${JSON.stringify(summary, null, 2)}\n`);
   }
 
-  console.log(`Benchmark run ${status}: ${runDir}`);
-  if (status !== "completed") {
-    process.exitCode = 1;
-  }
+  return { runDir, status };
 }
 
 async function loadSessions(
@@ -272,7 +288,11 @@ async function loadSessions(
 
 if (import.meta.main) {
   try {
-    await run();
+    const result = await runBenchmark(Bun.argv.slice(2));
+    console.log(`Benchmark run ${result.status}: ${result.runDir}`);
+    if (result.status !== "completed") {
+      process.exitCode = 1;
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
