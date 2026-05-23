@@ -261,6 +261,7 @@ export class Agent {
         role: "tool",
         toolCallId: toolCall.callId,
         toolName: toolCall.toolName,
+        success: false,
         content: [{ type: "text", text: this.formatToolError(result.error) }],
       };
     }
@@ -269,6 +270,7 @@ export class Agent {
       role: "tool",
       toolCallId: toolCall.callId,
       toolName: toolCall.toolName,
+      success: true,
       content: result.value.map((t) =>
         t.type === "text"
           ? { type: "text", text: t.content }

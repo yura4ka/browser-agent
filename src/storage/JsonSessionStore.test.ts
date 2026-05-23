@@ -143,4 +143,38 @@ describe("JsonSessionStore", () => {
 
     expect(listResult.error.message).toBe("Invalid session data");
   });
+
+  test("requires success on stored tool result messages", async () => {
+    const directory = await createTempDirectory();
+    const store = new JsonSessionStore(directory);
+
+    await mkdir(directory, { recursive: true });
+    await Bun.write(
+      join(directory, "legacy-tool-result.json"),
+      JSON.stringify({
+        ...createSession({ id: "legacy-tool-result" }),
+        turns: [
+          {
+            ...createTurn("2026-01-01T00:01:00.000Z"),
+            messages: [
+              {
+                role: "tool",
+                toolCallId: "call-1",
+                toolName: "search",
+                content: [{ type: "text", text: "Search result" }],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const getResult = await store.getSession("legacy-tool-result");
+
+    expect(Result.isErr(getResult)).toBe(true);
+    if (Result.isOk(getResult))
+      throw new Error("Expected invalid session error");
+
+    expect(getResult.error.message).toBe("Invalid session data");
+  });
 });

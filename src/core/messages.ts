@@ -41,6 +41,7 @@ const toolResultMessageSchema = z.strictObject({
   role: z.literal("tool"),
   toolCallId: z.string(),
   toolName: z.string(),
+  success: z.boolean(),
   content: z.array(messagePartSchema),
 });
 

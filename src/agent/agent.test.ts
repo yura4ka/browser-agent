@@ -250,6 +250,7 @@ describe("Agent", () => {
       role: "tool",
       toolCallId: "call-1",
       toolName: "test_tool",
+      success: true,
       content: [{ type: "text", text: "tool:abc" }],
     });
     expect(session.turns[0]?.status).toBe("completed");
@@ -260,6 +261,7 @@ describe("Agent", () => {
         role: "tool",
         toolCallId: "call-1",
         toolName: "test_tool",
+        success: true,
         content: [{ type: "text", text: "tool:abc" }],
       },
       finalAssistant,
@@ -371,5 +373,12 @@ describe("Agent", () => {
     });
     expect(session.turns[0]?.status).toBe("max_iterations");
     expect(session.turns[0]?.error).toBe("Agent stopped after 1 iterations");
+    expect(session.turns[0]?.messages.at(-1)).toEqual({
+      role: "tool",
+      toolCallId: "call-1",
+      toolName: "missing_tool",
+      success: false,
+      content: [{ type: "text", text: "Tool not found: missing_tool" }],
+    });
   });
 });

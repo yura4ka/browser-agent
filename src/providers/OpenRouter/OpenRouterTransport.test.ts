@@ -96,6 +96,7 @@ describe("OpenRouterTransport", () => {
             role: "tool",
             toolCallId: "call-1",
             toolName: "search",
+            success: true,
             content: [{ type: "text", text: "Search result" }],
           },
         ],
