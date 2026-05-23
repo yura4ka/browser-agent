@@ -119,7 +119,10 @@ describe("OpenRouterTransport", () => {
       expect(body).toEqual({
         model: "model-id",
         messages: [
-          { role: "system", content: "System prompt" },
+          {
+            role: "system",
+            content: [{ type: "text", text: "System prompt" }],
+          },
           {
             role: "user",
             content: [
@@ -246,7 +249,10 @@ describe("OpenRouterTransport", () => {
               },
             ],
           },
-          { role: "system", content: "Dynamic status" },
+          {
+            role: "system",
+            content: [{ type: "text", text: "Dynamic status" }],
+          },
           {
             role: "user",
             content: [{ type: "text", text: "Hello" }],
@@ -286,7 +292,7 @@ describe("OpenRouterTransport", () => {
       expect(body).toEqual({
         model: "model-id",
         messages: [
-          { role: "system", content: "Short" },
+          { role: "system", content: [{ type: "text", text: "Short" }] },
           {
             role: "user",
             content: [{ type: "text", text: "Hello" }],

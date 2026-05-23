@@ -245,7 +245,7 @@ export class OpenRouterTransport extends EventStreamAdapter {
     options: { cacheSystemPrompt?: boolean },
   ): OpenRouterSystemMessage {
     if (!options.cacheSystemPrompt) {
-      return { role: "system", content };
+      return { role: "system", content: [{ type: "text", text: content }] };
     }
 
     return {
