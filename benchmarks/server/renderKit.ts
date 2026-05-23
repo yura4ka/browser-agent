@@ -107,6 +107,30 @@ export function checkbox(
   return `<label>${input}${escapeHtml(options.label)}</label>`;
 }
 
+export function radioGroup(
+  ctx: RenderContext,
+  options: {
+    name: string;
+    legend: string;
+    values: Array<{ value: string; label: string; checked?: boolean }>;
+  },
+): string {
+  const controls = options.values
+    .map((option) => {
+      const id = `${options.name}-${option.value}`;
+      const input = `<input${attrs({ id, name: options.name, type: "radio", value: option.value, checked: option.checked })}>`;
+
+      if (ctx.difficulty === "hard") {
+        return `<div><span>${escapeHtml(option.label)}</span>${input}</div>`;
+      }
+
+      return `<label${attrs({ for: id })}>${input}${escapeHtml(option.label)}</label>`;
+    })
+    .join("");
+
+  return `<fieldset><legend>${escapeHtml(options.legend)}</legend>${controls}</fieldset>`;
+}
+
 export function select(
   ctx: RenderContext,
   options: {

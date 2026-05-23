@@ -10,6 +10,16 @@ document.addEventListener("keydown", (event) => {
   const target = event.target.closest("[role='link'][data-href]");
   if (target && (event.key === "Enter" || event.key === " ")) window.location.href = target.dataset.href;
 });
+document.addEventListener("click", (event) => {
+  const target = event.target.closest("[role='button'][data-type='submit']");
+  const form = target ? target.closest("form") : null;
+  if (form) form.requestSubmit();
+});
+document.addEventListener("keydown", (event) => {
+  const target = event.target.closest("[role='button'][data-type='submit']");
+  const form = target ? target.closest("form") : null;
+  if (form && (event.key === "Enter" || event.key === " ")) form.requestSubmit();
+});
 document.querySelectorAll("[data-delay-reveal]").forEach((element) => {
   window.setTimeout(() => element.hidden = false, ${delayMs});
 });

@@ -1,13 +1,11 @@
-import { deterministicClientScript } from "../server/deterministicClient";
-import { functionalCss } from "../server/functionalCss";
 import {
   button,
   link,
-  pageShell,
   type RenderContext,
   validationMessage,
 } from "../server/renderKit";
-import type { ScenarioResponse, ScenarioSite } from "../server/types";
+import type { ScenarioSite } from "../server/types";
+import { contextFromCase, htmlResponse, notFoundResponse } from "./shared";
 
 function renderEntry(ctx: RenderContext): string {
   const routeLabel =
@@ -67,29 +65,10 @@ function renderArchive(): string {
 </main>`;
 }
 
-function response(
-  title: string,
-  body: string,
-  ctx: RenderContext,
-): ScenarioResponse {
-  return {
-    headers: { "content-type": "text/html; charset=utf-8" },
-    body: pageShell({
-      title,
-      body,
-      css: functionalCss,
-      script: deterministicClientScript(ctx.seed),
-    }),
-  };
-}
-
 export const informationRetrievalSite: ScenarioSite = {
   site: "information-retrieval",
   async render(context) {
-    const ctx: RenderContext = {
-      difficulty: context.case.difficulty,
-      seed: context.case.seed,
-    };
+    const ctx = contextFromCase(context.case);
     const path = context.url.pathname;
 
     if (
@@ -103,7 +82,7 @@ export const informationRetrievalSite: ScenarioSite = {
     }
 
     if (path === "/capture") {
-      return response(
+      return htmlResponse(
         "Captured",
         '<main><p>Interaction captured.</p><a href="/">Back to entry</a></main>',
         ctx,
@@ -111,29 +90,21 @@ export const informationRetrievalSite: ScenarioSite = {
     }
 
     if (path === "/projects") {
-      return response("Projects", renderProjects(ctx), ctx);
+      return htmlResponse("Projects", renderProjects(ctx), ctx);
     }
 
     if (path === "/projects/heron") {
-      return response("Project Heron", renderHeron(ctx), ctx);
+      return htmlResponse("Project Heron", renderHeron(ctx), ctx);
     }
 
     if (path === "/archive") {
-      return response("Archive", renderArchive(), ctx);
+      return htmlResponse("Archive", renderArchive(), ctx);
     }
 
     if (path === "/") {
-      return response(context.case.title, renderEntry(ctx), ctx);
+      return htmlResponse(context.case.title, renderEntry(ctx), ctx);
     }
 
-    return {
-      status: 404,
-      headers: { "content-type": "text/html; charset=utf-8" },
-      body: pageShell({
-        title: "Not Found",
-        body: "<main><h1>Not Found</h1></main>",
-        css: functionalCss,
-      }),
-    };
+    return notFoundResponse();
   },
 };

@@ -38,13 +38,19 @@ bun run bench:serve --site information-retrieval --difficulty easy --seed 0 --po
 
 Then open `http://localhost:3012/` manually. Manual preview must not run the agent, create sessions, or write benchmark result artifacts.
 
-The initial previewable cases are:
+The initial previewable cases are all combinations below with seed `0`:
 
 | Site | Difficulty | Seed |
 | --- | --- | --- |
 | `information-retrieval` | `easy` | `0` |
 | `information-retrieval` | `medium` | `0` |
 | `information-retrieval` | `hard` | `0` |
+| `long-context` | `easy` | `0` |
+| `long-context` | `medium` | `0` |
+| `long-context` | `hard` | `0` |
+| `complex-form` | `easy` | `0` |
+| `complex-form` | `medium` | `0` |
+| `complex-form` | `hard` | `0` |
 
 Captured form interactions for the active preview are available at `http://localhost:3012/capture?format=json`.
 
