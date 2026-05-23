@@ -8,6 +8,21 @@ export function readOption(args: string[], name: string): string | undefined {
   return args[index + 1];
 }
 
+export function readNumberOption(
+  args: string[],
+  name: string,
+): number | undefined {
+  const value = readOption(args, name);
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export function missingRequiredArgs(args: string[], names: string[]): string[] {
   return names.filter((name) => readOption(args, name) === undefined);
 }

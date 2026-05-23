@@ -4,7 +4,7 @@ This directory contains the in-repository benchmark suite for evaluating browser
 
 ## Current Status
 
-Phase 1 provides the foundation: directory structure, Zod schemas, package scripts, and local usage documentation. Scenario serving and runner execution are scaffolded and will be implemented in later phases.
+Phase 1 provides the foundation: directory structure, Zod schemas, package scripts, and local usage documentation. Phase 2 adds deterministic scenario serving, plain TypeScript rendering helpers, functional CSS helpers, and in-memory interaction capture. Runner execution will be implemented in a later phase.
 
 ## Categories
 
@@ -30,13 +30,23 @@ CSS must be functional only. Use CSS for hide/show behavior, loading spinners, d
 
 ## Manual Preview
 
-Once Phase 2 is implemented, serve one scenario variant with:
+Serve one scenario variant with:
 
 ```sh
 bun run bench:serve --site information-retrieval --difficulty easy --seed 0 --port 3012
 ```
 
 Then open `http://localhost:3012/` manually. Manual preview must not run the agent, create sessions, or write benchmark result artifacts.
+
+The initial previewable cases are:
+
+| Site | Difficulty | Seed |
+| --- | --- | --- |
+| `information-retrieval` | `easy` | `0` |
+| `information-retrieval` | `medium` | `0` |
+| `information-retrieval` | `hard` | `0` |
+
+Captured form interactions for the active preview are available at `http://localhost:3012/capture?format=json`.
 
 ## Single Run
 
