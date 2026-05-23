@@ -1,7 +1,7 @@
 import { Agent } from "@/agent/agent";
 import { ContextManager } from "@/agent/ContextManager";
 import type { AgentEvent } from "@/agent/types";
-import { ConfigService } from "@/core/config";
+import { ConfigService, type IConfigService } from "@/core/config";
 import { Result } from "@/core/Result";
 import type { AgentSession } from "@/core/session";
 import { SYSTEM_PROMPT } from "@/core/systemPrompt";
@@ -38,14 +38,14 @@ import { screenshotTool } from "@/tools/tools/browser/screenshotTool";
 import { ChatService } from "./ChatService";
 
 export type AppControllerDeps = {
-  config?: ConfigService;
+  config?: IConfigService;
   providers?: ProviderManager;
   sessions?: SessionStore;
   chatService?: ChatService;
 };
 
 export class AppController {
-  private readonly config: ConfigService;
+  private readonly config: IConfigService;
   private readonly providers: ProviderManager;
   private readonly sessions: SessionStore;
   private readonly chatService: ChatService;

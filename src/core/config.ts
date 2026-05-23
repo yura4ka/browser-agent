@@ -27,7 +27,12 @@ export type UserConfig = {
   preferences: UserPreferences;
 };
 
-export class ConfigService {
+export type IConfigService = {
+  init(): Promise<void>;
+  get(): UserConfig;
+};
+
+export class ConfigService implements IConfigService {
   private config: UserConfig | null = null;
 
   async init(): Promise<void> {
