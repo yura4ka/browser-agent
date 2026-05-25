@@ -176,7 +176,69 @@ describe("benchmark scoring", () => {
     });
 
     expect(score.passed).toBe(false);
+    expect(score.totalScore).toBe(1);
     expect(score.checks[0]?.reason).toBe("Mismatched fields: priority");
+  });
+
+  test("awards partial credit for invoice form field mismatches", () => {
+    const benchmarkCase: BenchmarkCase = {
+      ...baseCase,
+      site: "invoice-reconciliation",
+      scoring: [
+        {
+          id: "invoice-reconciliation",
+          type: "form-submission",
+          label: "Invoice reconciliation payload",
+          expectedFields: {
+            invoiceNumber: "INV-2026-1048",
+            vendorId: "VEN-4182",
+            poNumber: "PO-8841",
+            action: "approve",
+            reasonCode: "matched-current-policy",
+            paymentQueue: "standard-ap",
+            approver: "Dana Ruiz",
+            confirmDuplicateReview: "on",
+            confirmPolicy: "on",
+            finalConfirm: "on",
+          },
+          points: 10,
+        },
+      ],
+    };
+
+    const score = scoreBenchmarkCase({
+      runId: "run-1",
+      status: "completed",
+      benchmarkCase,
+      interactions: [
+        {
+          timestamp: new Date().toISOString(),
+          route: "/submit",
+          method: "POST",
+          fields: {
+            invoiceNumber: "INV-2026-1048",
+            vendorId: "VEN-9999",
+            poNumber: "PO-8841",
+            action: "approve",
+            reasonCode: "matched-current-policy",
+            paymentQueue: "standard-ap",
+            approver: "Galen Moss",
+            confirmDuplicateReview: "on",
+            confirmPolicy: "on",
+            finalConfirm: "on",
+          },
+        },
+      ],
+    });
+
+    expect(score.passed).toBe(false);
+    expect(score.totalScore).toBe(8);
+    expect(score.checks[0]).toMatchObject({
+      score: 8,
+      maxScore: 10,
+      passed: false,
+      reason: "Mismatched fields: vendorId, approver",
+    });
   });
 
   test("aggregates event-derived metrics", () => {

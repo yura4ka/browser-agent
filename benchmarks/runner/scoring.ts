@@ -145,21 +145,27 @@ function scoreFormSubmission(
     );
   }
 
-  const mismatches = Object.entries(definition.expectedFields).filter(
-    ([field, expected]) => {
-      const actual = submission.fields[field];
-      return !fieldMatches(actual, expected);
-    },
-  );
+  const expectedEntries = Object.entries(definition.expectedFields);
+  const mismatches = expectedEntries.filter(([field, expected]) => {
+    const actual = submission.fields[field];
+    return !fieldMatches(actual, expected);
+  });
+  const matchedCount = expectedEntries.length - mismatches.length;
+  const partialScore =
+    expectedEntries.length === 0
+      ? definition.points
+      : (definition.points * matchedCount) / expectedEntries.length;
 
   return mismatches.length === 0
     ? passedCheck(definition.id, definition.label, definition.points)
-    : failedCheck(
-        definition.id,
-        definition.label,
-        definition.points,
-        `Mismatched fields: ${mismatches.map(([field]) => field).join(", ")}`,
-      );
+    : {
+        id: definition.id,
+        label: definition.label,
+        score: partialScore,
+        maxScore: definition.points,
+        passed: false,
+        reason: `Mismatched fields: ${mismatches.map(([field]) => field).join(", ")}`,
+      };
 }
 
 function fieldMatches(

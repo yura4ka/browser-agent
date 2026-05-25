@@ -57,6 +57,12 @@ describe("startBenchmarkServer", () => {
       entryText: "Start dispatch intake",
       routeText: "Dispatch Intake",
     },
+    {
+      site: "invoice-reconciliation" as const,
+      route: "/workbench",
+      entryText: "Open invoice workbench",
+      routeText: "AP Workbench",
+    },
   ])("renders entry and linked route for $site", async (scenario) => {
     const benchmarkCase = getCase({
       site: scenario.site,

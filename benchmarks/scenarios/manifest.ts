@@ -3,6 +3,7 @@ import {
   difficulties,
   getComplexFormVariant,
   getInformationRetrievalVariant,
+  getInvoiceReconciliationVariant,
   getLongContextVariant,
   supportedSeeds,
 } from "./variants";
@@ -46,7 +47,7 @@ function longContextCases() {
         description: `Read the ${difficulty} long operations brief and answer three factual questions.`,
         difficulty,
         seed,
-        goal: "Answer: harbor inspection window, sensor threshold, and backup operator.",
+        goal: "Answer: harbor inspection window, sensor threshold, and backup operator. Return the three values exactly as shown, preserving punctuation, colons, spaces, and units.",
         scoring: [
           {
             id: "harbor-window",
@@ -114,12 +115,51 @@ function complexFormCases() {
   );
 }
 
+function invoiceReconciliationCases() {
+  return difficulties.flatMap((difficulty) =>
+    supportedSeeds.map((seed) => {
+      const variant = getInvoiceReconciliationVariant(seed);
+
+      return {
+        id: `invoice-reconciliation-${difficulty}-${seed}`,
+        site: "invoice-reconciliation" as const,
+        title: "Reconcile the invoice",
+        description: `Complete the ${difficulty} invoice reconciliation workflow using the active invoice, vendor profile, and current AP policy.`,
+        difficulty,
+        seed,
+        goal: `Reconcile invoice ${variant.invoiceNumber} from ${variant.vendorName} for purchase order ${variant.poNumber}. Use the current AP policy and active vendor profile, ignore archived duplicates or superseded policy notes, then submit the reconciliation decision with all required confirmations.`,
+        scoring: [
+          {
+            id: "invoice-reconciliation",
+            type: "form-submission" as const,
+            label: "Invoice reconciliation payload",
+            expectedFields: {
+              invoiceNumber: variant.invoiceNumber,
+              vendorId: variant.vendorId,
+              poNumber: variant.poNumber,
+              action: variant.action,
+              reasonCode: variant.reasonCode,
+              paymentQueue: variant.paymentQueue,
+              approver: variant.approver,
+              confirmDuplicateReview: "on",
+              confirmPolicy: "on",
+              finalConfirm: "on",
+            },
+            points: 10,
+          },
+        ],
+      };
+    }),
+  );
+}
+
 export const benchmarkManifest = BenchmarkManifestSchema.parse({
   version: 1,
   cases: [
     ...informationRetrievalCases(),
     ...longContextCases(),
     ...complexFormCases(),
+    ...invoiceReconciliationCases(),
   ],
 });
 

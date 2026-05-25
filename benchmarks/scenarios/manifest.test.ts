@@ -4,12 +4,13 @@ import { createSeededRandom, seededShuffle } from "./seed";
 
 describe("benchmark manifest seeds", () => {
   test("exposes three seeds for every category and difficulty", () => {
-    expect(benchmarkManifest.cases).toHaveLength(27);
+    expect(benchmarkManifest.cases).toHaveLength(36);
 
     for (const site of [
       "information-retrieval",
       "long-context",
       "complex-form",
+      "invoice-reconciliation",
     ]) {
       for (const difficulty of ["easy", "medium", "hard"]) {
         const seeds = benchmarkManifest.cases
@@ -83,6 +84,36 @@ describe("benchmark manifest seeds", () => {
       notifyBy: "sms",
       confirmChecklist: "on",
       acknowledgeSla: "on",
+      finalConfirm: "on",
+    });
+  });
+
+  test("invoice reconciliation cases score the final reconciliation payload", () => {
+    const invoiceCase = benchmarkManifest.cases.find(
+      (benchmarkCase) => benchmarkCase.id === "invoice-reconciliation-medium-1",
+    );
+
+    expect(invoiceCase).toBeDefined();
+    expect(invoiceCase?.scoring).toHaveLength(1);
+
+    const scoring = invoiceCase?.scoring[0];
+    expect(scoring?.type).toBe("form-submission");
+
+    if (scoring?.type !== "form-submission") {
+      throw new Error("Expected form-submission scoring.");
+    }
+
+    expect(scoring.points).toBe(10);
+    expect(scoring.expectedFields).toEqual({
+      invoiceNumber: "INV-2026-2217",
+      vendorId: "VEN-7730",
+      poNumber: "PO-5120",
+      action: "hold",
+      reasonCode: "awaiting-receipt",
+      paymentQueue: "exception-ap",
+      approver: "Mira Sol",
+      confirmDuplicateReview: "on",
+      confirmPolicy: "on",
       finalConfirm: "on",
     });
   });

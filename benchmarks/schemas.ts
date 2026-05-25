@@ -7,6 +7,7 @@ export const BenchmarkCategorySchema = z.enum([
   "information-retrieval",
   "long-context",
   "complex-form",
+  "invoice-reconciliation",
 ]);
 export type BenchmarkCategory = z.infer<typeof BenchmarkCategorySchema>;
 

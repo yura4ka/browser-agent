@@ -29,6 +29,7 @@ export class BrowserRuntime {
         viewport: null,
         deviceScaleFactor: undefined,
       });
+      context.setDefaultTimeout(5_000);
       this.browserContext = context;
       return Result.Ok(context);
     } catch (error) {

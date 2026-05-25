@@ -117,6 +117,63 @@ const formVariants = [
   },
 ];
 
+const invoiceVariants = [
+  {
+    invoiceNumber: "INV-2026-1048",
+    vendorName: "Northstar Logistics",
+    vendorId: "VEN-4182",
+    poNumber: "PO-8841",
+    amount: "$18,420.50",
+    dueDate: "2026-06-12",
+    department: "Harbor Operations",
+    paymentQueue: "standard-ap",
+    approver: "Dana Ruiz",
+    exception: "three-way match complete",
+    action: "approve",
+    reasonCode: "matched-current-policy",
+    policyVersion: "AP-2026.4",
+    duplicateInvoice: "INV-2026-104B",
+    obsoleteReasonCode: "manual-review-required",
+    staleApprover: "Galen Moss",
+  },
+  {
+    invoiceNumber: "INV-2026-2217",
+    vendorName: "Blue Finch Supply",
+    vendorId: "VEN-7730",
+    poNumber: "PO-5120",
+    amount: "$7,905.00",
+    dueDate: "2026-06-18",
+    department: "Field Maintenance",
+    paymentQueue: "exception-ap",
+    approver: "Mira Sol",
+    exception: "receiving report missing",
+    action: "hold",
+    reasonCode: "awaiting-receipt",
+    policyVersion: "AP-2026.4",
+    duplicateInvoice: "INV-2026-221I",
+    obsoleteReasonCode: "matched-current-policy",
+    staleApprover: "Noah Vale",
+  },
+  {
+    invoiceNumber: "INV-2026-3094",
+    vendorName: "Canal Gate Electric",
+    vendorId: "VEN-0956",
+    poNumber: "PO-7398",
+    amount: "$12,660.75",
+    dueDate: "2026-06-24",
+    department: "Facilities Renewal",
+    paymentQueue: "exception-ap",
+    approver: "Iris Chen",
+    exception: "amount exceeds purchase order tolerance",
+    action: "hold",
+    reasonCode: "amount-tolerance-review",
+    policyVersion: "AP-2026.4",
+    duplicateInvoice: "INV-2026-309A",
+    obsoleteReasonCode: "awaiting-receipt",
+    staleApprover: "Theo Park",
+  },
+];
+
 export function getInformationRetrievalVariant(seed: number) {
   return informationRetrievalVariants[
     seed % informationRetrievalVariants.length
@@ -129,6 +186,10 @@ export function getLongContextVariant(seed: number) {
 
 export function getComplexFormVariant(seed: number) {
   return formVariants[seed % formVariants.length];
+}
+
+export function getInvoiceReconciliationVariant(seed: number) {
+  return invoiceVariants[seed % invoiceVariants.length];
 }
 
 export function getProjectDistractors(seed: number) {
@@ -173,5 +234,42 @@ export function getResponseWindowOptions(seed: number) {
       { value: "end-of-week", label: "End of week" },
     ],
     seed + 17,
+  );
+}
+
+export function getInvoiceActionOptions(seed: number) {
+  return seededShuffle(
+    [
+      { value: "approve", label: "Approve for payment" },
+      { value: "hold", label: "Place on hold" },
+      { value: "reject", label: "Reject invoice" },
+    ],
+    seed + 23,
+  );
+}
+
+export function getInvoiceReasonOptions(seed: number) {
+  return seededShuffle(
+    [
+      { value: "matched-current-policy", label: "Matched current policy" },
+      { value: "awaiting-receipt", label: "Awaiting receipt" },
+      {
+        value: "amount-tolerance-review",
+        label: "Amount tolerance review",
+      },
+      { value: "manual-review-required", label: "Manual review required" },
+    ],
+    seed + 29,
+  );
+}
+
+export function getInvoiceQueueOptions(seed: number) {
+  return seededShuffle(
+    [
+      { value: "standard-ap", label: "Standard AP" },
+      { value: "exception-ap", label: "Exception AP" },
+      { value: "fraud-review", label: "Fraud review" },
+    ],
+    seed + 31,
   );
 }
