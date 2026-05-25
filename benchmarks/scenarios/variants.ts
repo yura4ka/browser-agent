@@ -174,6 +174,69 @@ const invoiceVariants = [
   },
 ];
 
+const incidentRcaVariants = [
+  {
+    incidentId: "INC-2026-1842",
+    customerName: "Aster Freight",
+    affectedService: "checkout-api",
+    affectedServiceLabel: "Checkout API",
+    rootCauseCode: "cache-key-regression",
+    rootCauseLabel: "Cache key regression",
+    startTime: "2026-05-17 09:12 UTC",
+    mitigationTime: "2026-05-17 10:04 UTC",
+    severity: "sev-2",
+    severityLabel: "SEV-2",
+    customerImpact: "checkout-errors-enterprise",
+    customerImpactLabel: "Checkout errors for enterprise tenants",
+    followUpOwner: "Mira Sol",
+    correctiveAction: "rollback-and-cache-test",
+    correctiveActionLabel: "Rollback and add cache-key regression test",
+    deploymentId: "DEP-8841",
+    falseLead: "payment gateway timeout",
+    staleOwner: "Galen Moss",
+  },
+  {
+    incidentId: "INC-2026-2209",
+    customerName: "Blue Finch Retail",
+    affectedService: "search-indexer",
+    affectedServiceLabel: "Search Indexer",
+    rootCauseCode: "replica-lag-alert-gap",
+    rootCauseLabel: "Replica lag alert gap",
+    startTime: "2026-05-18 13:20 UTC",
+    mitigationTime: "2026-05-18 15:05 UTC",
+    severity: "sev-3",
+    severityLabel: "SEV-3",
+    customerImpact: "delayed-search-results",
+    customerImpactLabel: "Delayed search results for catalog updates",
+    followUpOwner: "Noah Vale",
+    correctiveAction: "add-replica-lag-slo",
+    correctiveActionLabel: "Add replica-lag SLO and alert",
+    deploymentId: "DEP-5120",
+    falseLead: "cdn purge delay",
+    staleOwner: "Lena Ort",
+  },
+  {
+    incidentId: "INC-2026-7316",
+    customerName: "Canal Gate Finance",
+    affectedService: "billing-api",
+    affectedServiceLabel: "Billing API",
+    rootCauseCode: "pool-exhaustion",
+    rootCauseLabel: "Connection pool exhaustion",
+    startTime: "2026-05-19 14:05 UTC",
+    mitigationTime: "2026-05-19 14:52 UTC",
+    severity: "sev-2",
+    severityLabel: "SEV-2",
+    customerImpact: "invoice-download-failures",
+    customerImpactLabel: "Invoice download failures for enterprise tenants",
+    followUpOwner: "Iris Chen",
+    correctiveAction: "raise-pool-cap-and-load-test",
+    correctiveActionLabel: "Raise pool cap and add load test",
+    deploymentId: "DEP-7398",
+    falseLead: "object storage throttling",
+    staleOwner: "Theo Park",
+  },
+];
+
 export function getInformationRetrievalVariant(seed: number) {
   return informationRetrievalVariants[
     seed % informationRetrievalVariants.length
@@ -190,6 +253,10 @@ export function getComplexFormVariant(seed: number) {
 
 export function getInvoiceReconciliationVariant(seed: number) {
   return invoiceVariants[seed % invoiceVariants.length];
+}
+
+export function getIncidentRcaVariant(seed: number) {
+  return incidentRcaVariants[seed % incidentRcaVariants.length];
 }
 
 export function getProjectDistractors(seed: number) {
@@ -271,5 +338,60 @@ export function getInvoiceQueueOptions(seed: number) {
       { value: "fraud-review", label: "Fraud review" },
     ],
     seed + 31,
+  );
+}
+
+export function getIncidentServiceOptions(seed: number) {
+  return seededShuffle(
+    incidentRcaVariants.map((variant) => ({
+      value: variant.affectedService,
+      label: variant.affectedServiceLabel,
+    })),
+    seed + 37,
+  );
+}
+
+export function getIncidentRootCauseOptions(seed: number) {
+  return seededShuffle(
+    [
+      ...incidentRcaVariants.map((variant) => ({
+        value: variant.rootCauseCode,
+        label: variant.rootCauseLabel,
+      })),
+      { value: "gateway-timeout", label: "Gateway timeout" },
+      { value: "cdn-purge-delay", label: "CDN purge delay" },
+    ],
+    seed + 41,
+  );
+}
+
+export function getIncidentSeverityOptions(seed: number) {
+  return seededShuffle(
+    [
+      { value: "sev-1", label: "SEV-1" },
+      { value: "sev-2", label: "SEV-2" },
+      { value: "sev-3", label: "SEV-3" },
+    ],
+    seed + 43,
+  );
+}
+
+export function getIncidentImpactOptions(seed: number) {
+  return seededShuffle(
+    incidentRcaVariants.map((variant) => ({
+      value: variant.customerImpact,
+      label: variant.customerImpactLabel,
+    })),
+    seed + 47,
+  );
+}
+
+export function getIncidentActionOptions(seed: number) {
+  return seededShuffle(
+    incidentRcaVariants.map((variant) => ({
+      value: variant.correctiveAction,
+      label: variant.correctiveActionLabel,
+    })),
+    seed + 53,
   );
 }

@@ -4,13 +4,14 @@ import { createSeededRandom, seededShuffle } from "./seed";
 
 describe("benchmark manifest seeds", () => {
   test("exposes three seeds for every category and difficulty", () => {
-    expect(benchmarkManifest.cases).toHaveLength(36);
+    expect(benchmarkManifest.cases).toHaveLength(45);
 
     for (const site of [
       "information-retrieval",
       "long-context",
       "complex-form",
       "invoice-reconciliation",
+      "incident-rca",
     ]) {
       for (const difficulty of ["easy", "medium", "hard"]) {
         const seeds = benchmarkManifest.cases
@@ -114,6 +115,36 @@ describe("benchmark manifest seeds", () => {
       approver: "Mira Sol",
       confirmDuplicateReview: "on",
       confirmPolicy: "on",
+      finalConfirm: "on",
+    });
+  });
+
+  test("incident RCA cases score the final postmortem payload", () => {
+    const incidentCase = benchmarkManifest.cases.find(
+      (benchmarkCase) => benchmarkCase.id === "incident-rca-hard-2",
+    );
+
+    expect(incidentCase).toBeDefined();
+    expect(incidentCase?.scoring).toHaveLength(1);
+
+    const scoring = incidentCase?.scoring[0];
+    expect(scoring?.type).toBe("form-submission");
+
+    if (scoring?.type !== "form-submission") {
+      throw new Error("Expected form-submission scoring.");
+    }
+
+    expect(scoring.points).toBe(10);
+    expect(scoring.expectedFields).toEqual({
+      incidentId: "INC-2026-7316",
+      affectedService: "billing-api",
+      rootCauseCode: "pool-exhaustion",
+      startTime: "2026-05-19 14:05 UTC",
+      mitigationTime: "2026-05-19 14:52 UTC",
+      severity: "sev-2",
+      customerImpact: "invoice-download-failures",
+      followUpOwner: "Iris Chen",
+      correctiveAction: "raise-pool-cap-and-load-test",
       finalConfirm: "on",
     });
   });

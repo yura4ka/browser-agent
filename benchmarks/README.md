@@ -14,6 +14,7 @@ Phases 1 through 7 provide deterministic scenario serving, seeded benchmark case
 | `long-context` | Read longer page content and answer factual questions. |
 | `complex-form` | Complete a multi-control form with validation and dynamic state. |
 | `invoice-reconciliation` | Reconcile a realistic invoice by combining invoice details, vendor data, policy rules, and a final submission. |
+| `incident-rca` | Complete a realistic enterprise incident RCA from long timeline, ticket, deployment, and runbook context. |
 
 ## Difficulties
 
@@ -47,6 +48,7 @@ Previewable cases are all combinations below with seeds `0`, `1`, and `2`:
 | `long-context` | `easy`, `medium`, `hard` | `0`, `1`, `2` |
 | `complex-form` | `easy`, `medium`, `hard` | `0`, `1`, `2` |
 | `invoice-reconciliation` | `easy`, `medium`, `hard` | `0`, `1`, `2` |
+| `incident-rca` | `easy`, `medium`, `hard` | `0`, `1`, `2` |
 
 Captured form interactions for the active preview are available at `http://localhost:3012/capture?format=json`.
 

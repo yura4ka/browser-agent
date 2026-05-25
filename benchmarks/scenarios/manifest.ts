@@ -2,6 +2,7 @@ import { type BenchmarkCase, BenchmarkManifestSchema } from "../schemas";
 import {
   difficulties,
   getComplexFormVariant,
+  getIncidentRcaVariant,
   getInformationRetrievalVariant,
   getInvoiceReconciliationVariant,
   getLongContextVariant,
@@ -153,6 +154,44 @@ function invoiceReconciliationCases() {
   );
 }
 
+function incidentRcaCases() {
+  return difficulties.flatMap((difficulty) =>
+    supportedSeeds.map((seed) => {
+      const variant = getIncidentRcaVariant(seed);
+
+      return {
+        id: `incident-rca-${difficulty}-${seed}`,
+        site: "incident-rca" as const,
+        title: "Complete the incident RCA",
+        description: `Read the ${difficulty} enterprise incident workspace and submit the root-cause analysis form.`,
+        difficulty,
+        seed,
+        goal: `Complete the RCA for incident ${variant.incidentId}. Use the final diagnosis, customer tickets, deployment notes, and runbook. Ignore false leads and stale ownership notes, then submit the postmortem form with the exact incident details.`,
+        scoring: [
+          {
+            id: "incident-rca",
+            type: "form-submission" as const,
+            label: "Incident RCA payload",
+            expectedFields: {
+              incidentId: variant.incidentId,
+              affectedService: variant.affectedService,
+              rootCauseCode: variant.rootCauseCode,
+              startTime: variant.startTime,
+              mitigationTime: variant.mitigationTime,
+              severity: variant.severity,
+              customerImpact: variant.customerImpact,
+              followUpOwner: variant.followUpOwner,
+              correctiveAction: variant.correctiveAction,
+              finalConfirm: "on",
+            },
+            points: 10,
+          },
+        ],
+      };
+    }),
+  );
+}
+
 export const benchmarkManifest = BenchmarkManifestSchema.parse({
   version: 1,
   cases: [
@@ -160,6 +199,7 @@ export const benchmarkManifest = BenchmarkManifestSchema.parse({
     ...longContextCases(),
     ...complexFormCases(),
     ...invoiceReconciliationCases(),
+    ...incidentRcaCases(),
   ],
 });
 

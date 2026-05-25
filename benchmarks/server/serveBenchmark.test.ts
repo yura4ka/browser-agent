@@ -63,6 +63,12 @@ describe("startBenchmarkServer", () => {
       entryText: "Open invoice workbench",
       routeText: "AP Workbench",
     },
+    {
+      site: "incident-rca" as const,
+      route: "/workspace",
+      entryText: "Open incident workspace",
+      routeText: "Incident Command Workspace",
+    },
   ])("renders entry and linked route for $site", async (scenario) => {
     const benchmarkCase = getCase({
       site: scenario.site,
