@@ -19,7 +19,7 @@ function informationRetrievalCases() {
         description: `Navigate the ${difficulty} information retrieval site to find the requested release code.`,
         difficulty,
         seed,
-        goal: `Find and report the release code for Project ${variant.project}.`,
+        goal: `Find the release code value for Project ${variant.project}. Return only the release code exactly as shown, with no added prefix or label.`,
         scoring: [
           {
             id: "release-code",
@@ -50,23 +50,23 @@ function longContextCases() {
         scoring: [
           {
             id: "harbor-window",
-            type: "exact" as const,
+            type: "contains-all" as const,
             label: "Harbor inspection window",
-            expected: variant.harborWindow,
+            expected: [variant.harborWindow],
             points: 1,
           },
           {
             id: "sensor-threshold",
-            type: "exact" as const,
+            type: "contains-all" as const,
             label: "Sensor threshold",
-            expected: variant.sensorThreshold,
+            expected: [variant.sensorThreshold],
             points: 1,
           },
           {
             id: "backup-operator",
-            type: "exact" as const,
+            type: "contains-all" as const,
             label: "Backup operator",
-            expected: variant.backupOperator,
+            expected: [variant.backupOperator],
             points: 1,
           },
         ],

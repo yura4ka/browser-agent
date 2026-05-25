@@ -115,7 +115,8 @@ Do not directly open any other URL. Navigate only by interacting with the page.
 
 Benchmark goal: ${goal}
 
-When finished, answer with the requested final result only.`;
+When finished, answer with only the final result value.
+Do not include prose, labels, markdown, code fences, punctuation, prefixes or explanation. Only the final result value.`;
 }
 
 function serializeEvent(options: {

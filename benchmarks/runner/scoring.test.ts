@@ -103,6 +103,49 @@ describe("benchmark scoring", () => {
     expect(score.checks[0]?.reason).toBe("Missing final assistant answer");
   });
 
+  test("scores separate contains checks against one combined answer", () => {
+    const benchmarkCase: BenchmarkCase = {
+      ...baseCase,
+      site: "long-context",
+      scoring: [
+        {
+          id: "harbor-window",
+          type: "contains-all",
+          label: "Harbor inspection window",
+          expected: ["Tuesday 09:30 UTC"],
+          caseSensitive: false,
+          points: 1,
+        },
+        {
+          id: "sensor-threshold",
+          type: "contains-all",
+          label: "Sensor threshold",
+          expected: ["18.7 psi"],
+          caseSensitive: false,
+          points: 1,
+        },
+        {
+          id: "backup-operator",
+          type: "contains-all",
+          label: "Backup operator",
+          expected: ["Mira Sol"],
+          caseSensitive: false,
+          points: 1,
+        },
+      ],
+    };
+
+    const score = scoreBenchmarkCase({
+      runId: "run-1",
+      status: "completed",
+      benchmarkCase,
+      finalAnswer: "Tuesday 09:30 UTC, 18.7 psi, Mira Sol",
+    });
+
+    expect(score.passed).toBe(true);
+    expect(score.totalScore).toBe(3);
+  });
+
   test("scores form submissions and reports mismatches", () => {
     const benchmarkCase: BenchmarkCase = {
       ...baseCase,

@@ -36,6 +36,26 @@ describe("benchmark manifest seeds", () => {
     );
   });
 
+  test("long context cases score each requested value inside a combined answer", () => {
+    const longContextCase = benchmarkManifest.cases.find(
+      (benchmarkCase) => benchmarkCase.id === "long-context-easy-0",
+    );
+
+    expect(longContextCase).toBeDefined();
+    expect(longContextCase?.scoring).toHaveLength(3);
+
+    for (const scoring of longContextCase?.scoring ?? []) {
+      expect(scoring.type).toBe("contains-all");
+
+      if (scoring.type !== "contains-all") {
+        throw new Error("Expected contains-all scoring.");
+      }
+
+      expect(scoring.points).toBe(1);
+      expect(scoring.expected).toHaveLength(1);
+    }
+  });
+
   test("complex form cases score the full multi-step payload", () => {
     const formCase = benchmarkManifest.cases.find(
       (benchmarkCase) => benchmarkCase.id === "complex-form-hard-2",
