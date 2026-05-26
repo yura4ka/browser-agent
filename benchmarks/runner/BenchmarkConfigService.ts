@@ -16,7 +16,7 @@ export class BenchmarkConfigService implements IConfigService {
         allowedUrls: [this.entryUrl],
         autoAllowAllTabs: false,
         promptCaching: {
-          enabled: false,
+          enabled: true,
           minCharacters: 2048,
         },
       },

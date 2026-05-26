@@ -355,4 +355,179 @@ describe("OpenRouterTransport", () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test("adds cache control to recent long text-only tool results", async () => {
+    const originalFetch = globalThis.fetch;
+    let body: unknown;
+
+    globalThis.fetch = (async (_input, init) => {
+      body = JSON.parse(String(init?.body));
+      return streamResponse("data: [DONE]\n\n");
+    }) as typeof fetch;
+
+    try {
+      const request: ChatRequest = {
+        modelId: "model-id",
+        messages: [
+          {
+            role: "tool",
+            toolCallId: "call-1",
+            toolName: "getTextContent",
+            success: true,
+            content: [{ type: "text", text: "Old long result" }],
+          },
+          {
+            role: "tool",
+            toolCallId: "call-2",
+            toolName: "getTextContent",
+            success: true,
+            content: [{ type: "text", text: "Recent long result" }],
+          },
+          {
+            role: "tool",
+            toolCallId: "call-3",
+            toolName: "getHtmlContent",
+            success: true,
+            content: [{ type: "text", text: "Another long result" }],
+          },
+          {
+            role: "tool",
+            toolCallId: "call-4",
+            toolName: "getAriaSnapshot",
+            success: true,
+            content: [{ type: "text", text: "Newest long result" }],
+          },
+        ],
+        tools: [],
+      };
+
+      await collectEvents(
+        new OpenRouterTransport().streamChat(request, promptCachingDeps),
+      );
+
+      expect(body).toEqual({
+        model: "model-id",
+        messages: [
+          {
+            role: "tool",
+            tool_call_id: "call-1",
+            content: [{ type: "text", text: "Old long result" }],
+          },
+          {
+            role: "tool",
+            tool_call_id: "call-2",
+            content: [
+              {
+                type: "text",
+                text: "Recent long result",
+              },
+            ],
+          },
+          {
+            role: "tool",
+            tool_call_id: "call-3",
+            content: [
+              {
+                type: "text",
+                text: "Another long result",
+              },
+            ],
+          },
+          {
+            role: "tool",
+            tool_call_id: "call-4",
+            content: [
+              {
+                type: "text",
+                text: "Newest long result",
+                cache_control: { type: "ephemeral" },
+              },
+            ],
+          },
+        ],
+        tools: [],
+        stream: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test("does not cache short, failed, or image tool results", async () => {
+    const originalFetch = globalThis.fetch;
+    let body: unknown;
+
+    globalThis.fetch = (async (_input, init) => {
+      body = JSON.parse(String(init?.body));
+      return streamResponse("data: [DONE]\n\n");
+    }) as typeof fetch;
+
+    try {
+      const request: ChatRequest = {
+        modelId: "model-id",
+        messages: [
+          {
+            role: "tool",
+            toolCallId: "call-1",
+            toolName: "getTextContent",
+            success: true,
+            content: [{ type: "text", text: "Short" }],
+          },
+          {
+            role: "tool",
+            toolCallId: "call-2",
+            toolName: "getTextContent",
+            success: false,
+            content: [{ type: "text", text: "Long failed result" }],
+          },
+          {
+            role: "tool",
+            toolCallId: "call-3",
+            toolName: "screenshot",
+            success: true,
+            content: [
+              { type: "text", text: "Took screenshot" },
+              { type: "image", imageUrl: "data:image/jpeg;base64,abc" },
+            ],
+          },
+        ],
+        tools: [],
+      };
+
+      await collectEvents(
+        new OpenRouterTransport().streamChat(request, promptCachingDeps),
+      );
+
+      expect(body).toEqual({
+        model: "model-id",
+        messages: [
+          {
+            role: "tool",
+            tool_call_id: "call-1",
+            content: [{ type: "text", text: "Short" }],
+          },
+          {
+            role: "tool",
+            tool_call_id: "call-2",
+            content: [{ type: "text", text: "Long failed result" }],
+          },
+          {
+            role: "tool",
+            tool_call_id: "call-3",
+            content: [
+              { type: "text", text: "Took screenshot" },
+              {
+                type: "image_url",
+                image_url: { url: "data:image/jpeg;base64,abc" },
+              },
+            ],
+          },
+        ],
+        tools: [],
+        stream: true,
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
