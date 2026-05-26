@@ -312,6 +312,7 @@ export class OpenRouterTransport extends EventStreamAdapter {
         description: tool.description,
         parameters: tool.parameters,
       },
+      cache_control: { type: "ephemeral" },
     };
   }
 }

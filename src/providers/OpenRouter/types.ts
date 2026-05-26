@@ -140,4 +140,5 @@ export type OpenRouterToolDefintion = {
     description: string;
     parameters: Record<string, unknown>;
   };
+  cache_control?: { type: "ephemeral"; ttl?: "5m" | "1h" };
 };

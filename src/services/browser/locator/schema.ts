@@ -107,6 +107,19 @@ export type LocatorFilterOptions = {
   visible?: boolean;
 };
 
+function parseJsonObjectString(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{")) return value;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
 const defaultOptionsSchema = z
   .object({
     exact: z
@@ -145,7 +158,7 @@ const roleOptionsSchema = z
   .describe("Options for role locators.")
   .register(z.globalRegistry, { id: "RoleLocatorOptions" });
 
-export const locatorSchema: z.ZodType<LocatorDef> = z
+const locatorSchemaBase: z.ZodType<LocatorDef> = z
   .discriminatedUnion("kind", [
     z
       .object({
@@ -282,5 +295,9 @@ export const locatorSchema: z.ZodType<LocatorDef> = z
       .describe("Filter the locator by options.")
       .register(z.globalRegistry, { id: "FilterLocator" }),
   ])
+  .describe("Input for resolving a Playwright locator.");
+
+export const locatorSchema: z.ZodType<LocatorDef> = z
+  .preprocess(parseJsonObjectString, locatorSchemaBase)
   .describe("Input for resolving a Playwright locator.")
   .register(z.globalRegistry, { id: "Locator" });

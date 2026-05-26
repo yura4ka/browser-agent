@@ -128,7 +128,7 @@ function invoiceReconciliationCases() {
         description: `Complete the ${difficulty} invoice reconciliation workflow using the active invoice, vendor profile, and current AP policy.`,
         difficulty,
         seed,
-        goal: `Reconcile invoice ${variant.invoiceNumber} from ${variant.vendorName} for purchase order ${variant.poNumber}. Use the current AP policy and active vendor profile, ignore archived duplicates or superseded policy notes, then submit the reconciliation decision with all required confirmations.`,
+        goal: `Reconcile invoice ${variant.invoiceNumber} from ${variant.vendorName} for purchase order ${variant.poNumber}. Use the current AP policy and active vendor profile, ignore archived duplicates or superseded policy notes, then submit the reconciliation decision with all required confirmations. For select use 'selectOption' tool`,
         scoring: [
           {
             id: "invoice-reconciliation",
@@ -166,7 +166,7 @@ function incidentRcaCases() {
         description: `Read the ${difficulty} enterprise incident workspace and submit the root-cause analysis form.`,
         difficulty,
         seed,
-        goal: `Complete the RCA for incident ${variant.incidentId}. Use the final diagnosis, customer tickets, deployment notes, and runbook. Ignore false leads and stale ownership notes, then submit the postmortem form with the exact incident details.`,
+        goal: `Complete the RCA for incident ${variant.incidentId}. Use the final diagnosis, customer tickets, deployment notes, and runbook. Ignore false leads and stale ownership notes, then submit the postmortem form with the exact incident details. For select use 'selectOption' tool`,
         scoring: [
           {
             id: "incident-rca",

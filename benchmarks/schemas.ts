@@ -170,7 +170,7 @@ export const RunSummarySchema = z.object({
         .record(z.string().min(1), z.number().int().nonnegative())
         .default({}),
       toolCallCountsByName: z
-        .record(z.string().min(1), z.number().int().nonnegative())
+        .record(z.string(), z.number().int().nonnegative())
         .default({}),
       inputTokens: z.number().int().nonnegative().optional(),
       outputTokens: z.number().int().nonnegative().optional(),
