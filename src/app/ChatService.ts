@@ -20,6 +20,7 @@ export class ChatService {
     sessionId: string,
     text: string,
     signal?: AbortSignal,
+    options: { maxIterations?: number } = {},
   ): AsyncGenerator<AgentEvent> {
     const sessionResult = await this.sessions.getSession(sessionId);
     if (Result.isErr(sessionResult)) {
@@ -43,6 +44,7 @@ export class ChatService {
       session,
       config: this.config.get(),
       signal,
+      maxIterations: options.maxIterations,
     };
 
     const initialTurnCount = session.turns.length;

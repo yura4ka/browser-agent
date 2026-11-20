@@ -92,7 +92,7 @@ Examples:
 - Link named Documentation: { "kind": "role", "role": "link", "options": { "name": { "type": "text", "text": "Documentation" } } }
 - Heading level 2 named Results: { "kind": "role", "role": "heading", "options": { "name": { "type": "text", "text": "Results" }, "level": 2 } }
 
-Text-matching locator fields use StringOrRegex objects, not plain strings. Use { "type": "text", "text": "..." } for normal text, or { "type": "regex", "pattern": "...", "flags": "i" } only when regex matching is needed. Do not add escaped quote characters to JSON property names or values; keys must be kind, role, options, name, and so on.
+Text-matching locator fields use StringOrRegex objects, not plain strings. Use { "type": "text", "text": "..." } for normal text, or { "type": "regex", "pattern": "...", "flags": "i" } only when regex matching is needed. Never pass a LocatorDef or StringOrRegex as an escaped JSON string. Do not add escaped quote characters to JSON property names or values; keys must be kind, role, options, name, and so on.
 
 Narrow ambiguous matches with composition:
 

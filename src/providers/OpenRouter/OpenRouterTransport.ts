@@ -122,6 +122,11 @@ export class OpenRouterTransport extends EventStreamAdapter {
       return Result.fromCanonical("Missing OPENROUTER_API_KEY");
     }
 
+    const cachedToolResultIndexes = this.getCachedToolResultIndexes(
+      request.messages,
+      deps,
+    );
+
     const response = await Result.fromPromise(
       fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
@@ -138,6 +143,7 @@ export class OpenRouterTransport extends EventStreamAdapter {
                 index,
                 deps,
               ),
+              cacheToolResult: cachedToolResultIndexes.has(index),
             }),
           ),
           tools: request.tools.map(this.mapToolDefinition),
@@ -219,9 +225,43 @@ export class OpenRouterTransport extends EventStreamAdapter {
     );
   }
 
+  private getCachedToolResultIndexes(
+    messages: CanonicalMessage[],
+    deps: ProviderDeps,
+  ): Set<number> {
+    const promptCaching = deps.config.preferences.promptCaching;
+    if (!promptCaching.enabled) return new Set();
+
+    const indexes: number[] = [];
+    for (let index = messages.length - 1; index >= 0; index--) {
+      if (
+        this.shouldCacheToolResult(messages[index], promptCaching.minCharacters)
+      ) {
+        indexes.push(index);
+        break;
+      }
+    }
+
+    return new Set(indexes);
+  }
+
+  private shouldCacheToolResult(
+    message: CanonicalMessage,
+    minCharacters: number,
+  ): boolean {
+    if (message.role !== "tool" || !message.success) return false;
+    if (!message.content.every((part) => part.type === "text")) return false;
+
+    const textLength = message.content.reduce(
+      (length, part) => length + (part.type === "text" ? part.text.length : 0),
+      0,
+    );
+    return textLength >= minCharacters;
+  }
+
   private mapMessage(
     message: CanonicalMessage,
-    options: { cacheSystemPrompt?: boolean } = {},
+    options: { cacheSystemPrompt?: boolean; cacheToolResult?: boolean } = {},
   ): OpenRouterMessage {
     switch (message.role) {
       case "system":
@@ -250,12 +290,28 @@ export class OpenRouterTransport extends EventStreamAdapter {
 
         return mapped;
       }
-      case "tool":
+      case "tool": {
+        const content = message.content.map((part) =>
+          this.mapMessagePart(part),
+        );
+        if (options.cacheToolResult) {
+          return {
+            role: "tool",
+            tool_call_id: message.toolCallId,
+            content: content.map((part) =>
+              part.type === "text"
+                ? { ...part, cache_control: { type: "ephemeral" } }
+                : part,
+            ),
+          };
+        }
+
         return {
           role: "tool",
           tool_call_id: message.toolCallId,
-          content: message.content.map((part) => this.mapMessagePart(part)),
+          content,
         };
+      }
     }
   }
 
@@ -312,6 +368,7 @@ export class OpenRouterTransport extends EventStreamAdapter {
         description: tool.description,
         parameters: tool.parameters,
       },
+      cache_control: { type: "ephemeral" },
     };
   }
 }

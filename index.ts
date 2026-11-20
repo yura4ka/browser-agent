@@ -340,7 +340,7 @@ function handleAgentEvent(
 ): void {
   switch (event.type) {
     case "sse-comment":
-      writeLine(chalk.dim(event.content));
+      // writeLine(chalk.dim(event.content));
       return;
     case "tool-call":
       toolCalls.set(event.call.callId, event.call);
@@ -430,7 +430,11 @@ function printToolResult(call: ToolCall | undefined, result: ToolResult): void {
 
   for (const part of result.value) {
     if (part.type === "text") {
-      writeLine(chalk.dim(part.content));
+      const contentText =
+        part.content.length > 280
+          ? `${part.content.slice(0, 277)}...`
+          : part.content;
+      writeLine(chalk.dim(contentText));
     } else {
       writeLine(chalk.dim(`[image]`));
     }
