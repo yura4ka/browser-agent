@@ -16,15 +16,15 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.10",
-    "@types/bun": "^1.3.11"
+    "@types/bun": "^1.4.5"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "chalk": "^5.6.2",
-    "eventsource-parser": "^3.0.6",
-    "playwright": "^1.59.1",
-    "zod": "^4.3.6"
+    "eventsource-parser": "^3.1.1",
+    "playwright": "^1.65.1",
+    "zod": "^4.6.7"
   }
 }
