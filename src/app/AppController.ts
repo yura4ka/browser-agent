@@ -5,6 +5,10 @@ import { ConfigService, type IConfigService } from "@/core/config";
 import { Result } from "@/core/Result";
 import type { AgentSession } from "@/core/session";
 import { SYSTEM_PROMPT } from "@/core/systemPrompt";
+import {
+  CHATGPT_PLAN,
+  ChatGPTPlanProvider,
+} from "@/providers/ChatGPTPlan/ChatGPTPlanProvider";
 import { OpenRouterProvider } from "@/providers/OpenRouter/OpenRouterProvider";
 import { ProviderManager } from "@/providers/ProviderManager";
 import type {
@@ -13,6 +17,8 @@ import type {
   SelectedModel,
 } from "@/providers/types";
 import { BrowserService } from "@/services/browser/BrowserService";
+import type { ChatGPTAccountService } from "@/services/chatgpt/ChatGPTAccountService";
+import type { SignInOptions } from "@/services/chatgpt/oauth";
 import { JsonSessionStore } from "@/storage/JsonSessionStore";
 import type { AgentSessionSummary, SessionStore } from "@/storage/SessionStore";
 import { ToolManager } from "@/tools/ToolManager";
@@ -42,6 +48,8 @@ export type AppControllerDeps = {
   providers?: ProviderManager;
   sessions?: SessionStore;
   chatService?: ChatService;
+  chatgpt?: ChatGPTAccountService;
+  chatgptFetch?: typeof fetch;
 };
 
 export class AppController {
@@ -50,18 +58,30 @@ export class AppController {
   private readonly sessions: SessionStore;
   private readonly chatService: ChatService;
   private selectedSessionId: string | null = null;
+  private readonly chatgpt?: ChatGPTAccountService;
+  private readonly chatgptFetch?: typeof fetch;
+  private turnRunning = false;
+  private accountOperationRunning = false;
+  private confirmedDestination?: { sessionId: string; selected: SelectedModel };
+  private modelAccount?: string;
 
   constructor(deps: AppControllerDeps = {}) {
     this.config = deps.config ?? new ConfigService();
     this.providers = deps.providers ?? new ProviderManager();
     this.sessions = deps.sessions ?? new JsonSessionStore("./data/sessions");
     this.chatService = deps.chatService ?? this.createChatService();
+    this.chatgpt = deps.chatgpt;
+    this.chatgptFetch = deps.chatgptFetch;
   }
 
   async init(): Promise<void> {
     await this.config.init();
 
     this.providers.add(new OpenRouterProvider());
+    if (this.chatgpt)
+      this.providers.add(
+        new ChatGPTPlanProvider(this.chatgpt, this.chatgptFetch),
+      );
     await this.providers.initAll(this.config.get());
   }
 
@@ -86,6 +106,7 @@ export class AppController {
   getModels(providerId: string): Result<ModelDescriptor[]> {
     const result = this.providers.getModels(providerId);
     if (Result.isErr(result)) return result;
+    if (providerId === CHATGPT_PLAN) return result;
     return Result.Ok(
       result.value.toSorted((a, b) =>
         a.displayName.localeCompare(b.displayName),
@@ -94,7 +115,163 @@ export class AppController {
   }
 
   selectModel(providerId: string, modelId: string): Result<void> {
+    if (this.turnRunning || this.accountOperationRunning)
+      return Result.fromCanonical("An operation is already running");
+    this.confirmedDestination = undefined;
     return this.providers.select(providerId, modelId);
+  }
+
+  async prepareModels(
+    providerId: string,
+    signal?: AbortSignal,
+  ): Promise<Result<ModelDescriptor[]>> {
+    if (providerId !== CHATGPT_PLAN) return this.getModels(providerId);
+    const status = await this.chatGPTStatus();
+    if (Result.isErr(status)) {
+      this.invalidatePlan();
+      return status;
+    }
+    const active = status.value.active;
+    if (active?.status !== "connected") {
+      this.invalidatePlan();
+      return Result.fromCanonical(
+        active?.status === "usage-limited"
+          ? "ChatGPT plan usage is paused; use /chatgpt retry"
+          : active?.status === "disabled"
+            ? "Plan usage is not enabled; use /chatgpt enable"
+            : "ChatGPT is signed out; use /chatgpt login",
+      );
+    }
+    const provider = this.providers
+      .getProviders()
+      .find((candidate) => candidate.id === CHATGPT_PLAN);
+    if (
+      this.modelAccount !== active.key ||
+      !provider?.connectionResult ||
+      Result.isErr(provider.connectionResult)
+    ) {
+      this.modelAccount = active.key;
+      await this.providers.refresh(CHATGPT_PLAN, {
+        config: this.config.get(),
+        registrationKey: active.key,
+        catalogSignal: signal,
+      });
+      const latest = await this.chatGPTStatus();
+      if (
+        Result.isErr(latest) ||
+        latest.value.active?.key !== active.key ||
+        latest.value.active.status !== "connected"
+      ) {
+        const error = provider?.connectionResult;
+        if (this.modelAccount === active.key) this.invalidatePlan();
+        if (error && Result.isErr(error)) return error;
+        if (Result.isErr(latest)) return latest;
+        return Result.fromCanonical(
+          "ChatGPT account changed or is unavailable; reopen the model picker",
+        );
+      }
+    }
+    if (
+      this.modelAccount !== active.key ||
+      provider?.registrationKey !== active.key
+    ) {
+      const error = provider?.connectionResult;
+      if (error && Result.isErr(error)) return error;
+      return Result.fromCanonical(
+        "ChatGPT model catalog changed; reopen the model picker",
+      );
+    }
+    return this.getModels(providerId);
+  }
+
+  async chatGPTStatus() {
+    return (
+      this.chatgpt?.status() ??
+      Result.fromCanonical("ChatGPT Plan is not enabled in this application")
+    );
+  }
+
+  async signInChatGPT(key?: string, options?: SignInOptions) {
+    return this.changeAccount(async (accounts) => {
+      const before = await accounts.status();
+      const result = await accounts.signIn(key, options);
+      if (Result.isErr(result)) return result;
+      const previousKey = Result.isOk(before)
+        ? before.value.active?.key
+        : undefined;
+      if (
+        result.value.status === "connected" ||
+        !previousKey ||
+        previousKey === result.value.key
+      )
+        this.invalidatePlan();
+      if (result.value.status === "connected" && !options?.signal?.aborted)
+        await this.prepareModels(CHATGPT_PLAN, options?.signal);
+      return result;
+    });
+  }
+
+  async signOutChatGPT() {
+    return this.changeAccount(async (accounts) => {
+      const status = await accounts.status();
+      if (Result.isErr(status)) return status;
+      if (!status.value.active)
+        return Result.fromCanonical("No active ChatGPT account");
+      this.invalidatePlan();
+      return accounts.signOut(status.value.active.key);
+    });
+  }
+
+  async retryChatGPT() {
+    return this.changeAccount(async (accounts) => {
+      const status = await accounts.status();
+      if (Result.isErr(status)) return status;
+      if (!status.value.active)
+        return Result.fromCanonical("No active ChatGPT account");
+      if (status.value.active.status !== "usage-limited")
+        return Result.fromCanonical("ChatGPT plan usage is not paused");
+      this.invalidatePlan();
+      return accounts.retry(status.value.active.key);
+    });
+  }
+
+  async acknowledgeChatGPT(key: string) {
+    return (
+      this.chatgpt?.acknowledge(key) ??
+      Result.fromCanonical("ChatGPT Plan is not enabled")
+    );
+  }
+
+  confirmHistoryDestination(): Result<void> {
+    const selected = this.providers.selected;
+    if (!selected || !this.selectedSessionId)
+      return Result.fromCanonical(
+        "Open a session and choose a destination model first",
+      );
+    if (this.turnRunning || this.accountOperationRunning)
+      return Result.fromCanonical("An operation is already running");
+    this.confirmedDestination = { sessionId: this.selectedSessionId, selected };
+    return Result.Ok(undefined);
+  }
+
+  private invalidatePlan() {
+    this.modelAccount = undefined;
+    this.providers.invalidate(CHATGPT_PLAN);
+  }
+
+  private async changeAccount<T>(
+    operation: (accounts: ChatGPTAccountService) => Promise<Result<T>>,
+  ): Promise<Result<T>> {
+    if (!this.chatgpt)
+      return Result.fromCanonical("ChatGPT Plan is not enabled");
+    if (this.turnRunning || this.accountOperationRunning)
+      return Result.fromCanonical("An operation is already running");
+    this.accountOperationRunning = true;
+    try {
+      return await operation(this.chatgpt);
+    } finally {
+      this.accountOperationRunning = false;
+    }
   }
 
   getSelectedModel() {
@@ -106,6 +283,8 @@ export class AppController {
   }
 
   async selectSession(sessionId: string): Promise<Result<AgentSession>> {
+    if (this.turnRunning || this.accountOperationRunning)
+      return Result.fromCanonical("An operation is already running");
     const sessionResult = await this.sessions.getSession(sessionId);
     if (Result.isErr(sessionResult)) return sessionResult;
     if (!sessionResult.value) {
@@ -113,6 +292,22 @@ export class AppController {
     }
 
     const session = sessionResult.value;
+    this.confirmedDestination = undefined;
+    if (session.selectedModel.providerId === CHATGPT_PLAN) {
+      this.providers.clearSelection();
+      const status = await this.chatGPTStatus();
+      if (
+        Result.isOk(status) &&
+        status.value.active?.status === "connected" &&
+        status.value.active.key === session.selectedModel.registrationKey
+      ) {
+        const models = await this.prepareModels(CHATGPT_PLAN);
+        if (Result.isOk(models))
+          this.providers.select(CHATGPT_PLAN, session.selectedModel.modelId);
+      }
+      this.selectedSessionId = session.id;
+      return Result.Ok(session);
+    }
     const selectModelResult = this.providers.select(
       session.selectedModel.providerId,
       session.selectedModel.modelId,
@@ -124,7 +319,9 @@ export class AppController {
   }
 
   startNewSession(): void {
+    if (this.turnRunning || this.accountOperationRunning) return;
     this.selectedSessionId = null;
+    this.confirmedDestination = undefined;
   }
 
   async getSelectedSession(): Promise<Result<AgentSession | null>> {
@@ -137,6 +334,12 @@ export class AppController {
     signal?: AbortSignal,
     options: { maxIterations?: number } = {},
   ): AsyncGenerator<AgentEvent> {
+    if (this.turnRunning || this.accountOperationRunning) {
+      yield { type: "error", error: "An operation is already running" };
+      return;
+    }
+    this.turnRunning = true;
+    const selected = this.providers.selected;
     const abortController = new AbortController();
     const cleanup = this.forwardAbort(signal, abortController);
 
@@ -146,7 +349,33 @@ export class AppController {
         return;
       }
 
-      const sessionId = await this.getOrCreateSessionId(text);
+      if (!selected) {
+        yield {
+          type: "error",
+          error:
+            this.chatgpt && this.selectedSessionId
+              ? "No model selected. Use /model, or /chatgpt to check the saved account."
+              : "No model selected",
+        };
+        return;
+      }
+      if (selected.provider.id === CHATGPT_PLAN) {
+        const status = await this.chatGPTStatus();
+        if (
+          Result.isErr(status) ||
+          status.value.active?.status !== "connected" ||
+          status.value.active.key !== selected.registrationKey
+        ) {
+          this.invalidatePlan();
+          yield {
+            type: "error",
+            error:
+              "ChatGPT account changed or is unavailable. Use /chatgpt and select a model again.",
+          };
+          return;
+        }
+      }
+      const sessionId = await this.getOrCreateSessionId(text, selected);
       if (Result.isErr(sessionId)) {
         yield this.toErrorEvent(sessionId.error);
         return;
@@ -156,7 +385,7 @@ export class AppController {
         sessionId.value,
         text,
         abortController.signal,
-        options,
+        { ...options, selectedModel: selected },
       )) {
         yield event;
       }
@@ -168,6 +397,16 @@ export class AppController {
       };
     } finally {
       cleanup();
+      if (selected?.provider.id === CHATGPT_PLAN) {
+        const status = await this.chatGPTStatus();
+        if (
+          Result.isErr(status) ||
+          status.value.active?.status !== "connected" ||
+          status.value.active.key !== selected.registrationKey
+        )
+          this.invalidatePlan();
+      }
+      this.turnRunning = false;
     }
   }
 
@@ -205,10 +444,10 @@ export class AppController {
       .addTool(setCheckedTool);
   }
 
-  private async getOrCreateSessionId(text: string): Promise<Result<string>> {
-    const selected = this.providers.selected;
-    if (!selected) return Result.fromCanonical("No model selected");
-
+  private async getOrCreateSessionId(
+    text: string,
+    selected: SelectedModel,
+  ): Promise<Result<string>> {
     if (this.selectedSessionId) {
       return this.updateSelectedSessionModel(this.selectedSessionId, selected);
     }
@@ -234,6 +473,9 @@ export class AppController {
     return {
       providerId: selected.provider.id,
       modelId: selected.model.id,
+      ...(selected.registrationKey
+        ? { registrationKey: selected.registrationKey }
+        : {}),
     };
   }
 
@@ -250,9 +492,24 @@ export class AppController {
     }
 
     const selectedModel = this.toSessionSelectedModel(selected);
+    const previous = session.selectedModel;
+    if (
+      (previous.providerId === CHATGPT_PLAN ||
+        selectedModel.providerId === CHATGPT_PLAN) &&
+      (previous.providerId !== selectedModel.providerId ||
+        previous.registrationKey !== selectedModel.registrationKey ||
+        (previous.providerId === CHATGPT_PLAN && !previous.registrationKey)) &&
+      (this.confirmedDestination?.sessionId !== sessionId ||
+        this.confirmedDestination.selected !== selected)
+    )
+      return Result.fromCanonical(
+        "History was not sent to a different account or provider",
+        "Use /session confirm to allow the selected destination, or /session new",
+      );
     if (
       session.selectedModel.providerId === selectedModel.providerId &&
-      session.selectedModel.modelId === selectedModel.modelId
+      session.selectedModel.modelId === selectedModel.modelId &&
+      session.selectedModel.registrationKey === selectedModel.registrationKey
     ) {
       return Result.Ok(sessionId);
     }
@@ -260,6 +517,7 @@ export class AppController {
     session.selectedModel = selectedModel;
     const saveResult = await this.sessions.saveSession(session);
     if (Result.isErr(saveResult)) return saveResult;
+    this.confirmedDestination = undefined;
 
     return Result.Ok(sessionId);
   }

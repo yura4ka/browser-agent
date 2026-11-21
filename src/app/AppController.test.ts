@@ -5,9 +5,17 @@ import type { AssistantMessage } from "@/core/messages";
 import { Result } from "@/core/Result";
 import { type AgentSession, EMPTY_AGENT_USAGE } from "@/core/session";
 import { SYSTEM_PROMPT } from "@/core/systemPrompt";
+import { CHATGPT_PLAN } from "@/providers/ChatGPTPlan/ChatGPTPlanProvider";
 import { LLMProvider } from "@/providers/LLMProvider";
 import { ProviderManager } from "@/providers/ProviderManager";
 import type { ChatRequest, ModelDescriptor } from "@/providers/types";
+import { ChatGPTAccountService } from "@/services/chatgpt/ChatGPTAccountService";
+import type {
+  AccountIndex,
+  CredentialStore,
+  Registration,
+} from "@/services/chatgpt/credentials";
+import { OAuthError, PLAN_SCOPE } from "@/services/chatgpt/oauth";
 import type {
   AgentSessionSummary,
   CreateSessionInput,
@@ -170,6 +178,138 @@ function assistantMessage(text: string): AssistantMessage {
     content: [{ type: "text", text }],
   };
 }
+
+test("plan sessions stay viewable but never send across accounts without explicit confirmation", async () => {
+  let index: AccountIndex | undefined;
+  const records = new Map<string, Registration>();
+  const store: CredentialStore = {
+    withLock: async (_key, run) => run(),
+    index: async () => index,
+    saveIndex: async (value) => {
+      index = value;
+    },
+    account: async (key) => records.get(key),
+    saveAccount: async (value) => {
+      records.set(value.key, value);
+    },
+  };
+  let grants = 0;
+  const accounts = new ChatGPTAccountService(store, {
+    signIn: async () => {
+      const number = ++grants;
+      return Result.Ok({
+        clientId: `oaiapp_fixture${number}`,
+        identity: { subject: "same-subject", email: "fixture@example.test" },
+        enabled: true,
+        tokens: {
+          accessToken: `fake-access-${number}`,
+          refreshToken: "fake-refresh",
+          idToken: "fake-id",
+          expiresAt: Number.MAX_SAFE_INTEGER,
+          scopes: [PLAN_SCOPE],
+        },
+      });
+    },
+    refresh: async () => Result.Err(new OAuthError("Unexpected refresh")),
+    revoke: async () => true,
+  });
+  const sessions = new TestSessionStore();
+  const calls: { url: string; token: string | null; body?: string }[] = [];
+  const fetcher = Object.assign(
+    async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({
+        url: String(url),
+        token: new Headers(init?.headers).get("Authorization"),
+        body: init?.body?.toString(),
+      });
+      if (String(url).endsWith("/models")) {
+        const suffix =
+          new Headers(init?.headers).get("Authorization") ===
+          "Bearer fake-access-2"
+            ? "second"
+            : "first";
+        return Response.json({
+          models: [
+            { slug: "shared", display_name: "Shared", visibility: "list" },
+            { slug: suffix, display_name: suffix, visibility: "list" },
+          ],
+        });
+      }
+      return new Response(
+        `data: ${JSON.stringify({
+          type: "response.completed",
+          response: {
+            output: [
+              {
+                type: "message",
+                content: [{ type: "output_text", text: "fixture output" }],
+              },
+            ],
+            usage: { input_tokens: 2, output_tokens: 3, total_tokens: 5 },
+          },
+        })}\n\n`,
+      );
+    },
+    { preconnect: () => {} },
+  );
+  const controller = new AppController({
+    config: configService,
+    sessions,
+    chatgpt: accounts,
+    chatgptFetch: fetcher,
+  });
+  await controller.init();
+  expect(calls).toHaveLength(0);
+  const first = await controller.signInChatGPT();
+  if (Result.isErr(first)) throw first.error;
+  expect((await controller.prepareModels(CHATGPT_PLAN)).ok).toBe(true);
+  expect(controller.selectModel(CHATGPT_PLAN, "shared").ok).toBe(true);
+  expect(
+    await collectEvents(controller.chat("private saved history")),
+  ).toContainEqual({ type: "done" });
+  const selected = await controller.getSelectedSession();
+  if (Result.isErr(selected) || !selected.value)
+    throw new Error("Session was not saved");
+  const id = selected.value.id;
+  expect(selected.value.selectedModel.registrationKey).toBe(first.value.key);
+  expect(selected.value.usage.chatgptPlan?.totalTokens).toBe(5);
+  expect(selected.value.usage.cost).toBe(0);
+  expect(JSON.stringify(selected.value)).not.toMatch(
+    /fake-access|fake-refresh|oaiapp_fixture|fixture@example/,
+  );
+
+  const resumed = new AppController({
+    config: configService,
+    sessions,
+    chatgpt: accounts,
+    chatgptFetch: fetcher,
+  });
+  await resumed.init();
+  expect((await resumed.selectSession(id)).ok).toBe(true);
+  expect(resumed.getSelectedModel()?.registrationKey).toBe(first.value.key);
+  const second = await resumed.signInChatGPT();
+  if (Result.isErr(second)) throw second.error;
+  expect(second.value.label).not.toBe(first.value.label);
+  expect(resumed.getSelectedModel()).toBeNull();
+  expect(resumed.getModels(CHATGPT_PLAN)).toMatchObject({
+    ok: true,
+    value: [{ id: "shared" }, { id: "second" }],
+  });
+  expect((await resumed.selectSession(id)).ok).toBe(true);
+  expect(resumed.getSelectedModel()).toBeNull();
+  expect((await resumed.prepareModels(CHATGPT_PLAN)).ok).toBe(true);
+  expect(resumed.selectModel(CHATGPT_PLAN, "shared").ok).toBe(true);
+  const count = calls.length;
+  const blocked = await collectEvents(resumed.chat("not sent"));
+  expect(blocked).toMatchObject([{ type: "error" }]);
+  expect(calls).toHaveLength(count);
+  expect(resumed.confirmHistoryDestination().ok).toBe(true);
+  expect(await collectEvents(resumed.chat("now send"))).toContainEqual({
+    type: "done",
+  });
+  expect(calls.at(-1)?.token).toBe("Bearer fake-access-2");
+  expect(calls.at(-1)?.body).toContain("private saved history");
+});
 
 async function collectEvents(
   stream: AsyncGenerator<AgentEvent>,

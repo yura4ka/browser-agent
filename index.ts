@@ -4,7 +4,13 @@ import { AppController } from "@/app/AppController";
 import type { CanonicalMessage, ToolCall } from "@/core/messages";
 import { Result } from "@/core/Result";
 import type { AgentSession, AgentUsage } from "@/core/session";
+import { CHATGPT_PLAN } from "@/providers/ChatGPTPlan/ChatGPTPlanProvider";
 import type { ModelDescriptor, ProviderDescriptor } from "@/providers/types";
+import {
+  type ChatGPTAccount,
+  ChatGPTAccountService,
+} from "@/services/chatgpt/ChatGPTAccountService";
+import { MANAGE_USAGE } from "@/services/chatgpt/oauth";
 import type { AgentSessionSummary } from "@/storage/SessionStore";
 import type { ToolResult } from "@/tools/types";
 
@@ -15,17 +21,21 @@ type PendingSelection =
       provider: ProviderDescriptor;
       models: ModelDescriptor[];
     }
-  | { type: "session"; sessions: AgentSessionSummary[] };
+  | { type: "session"; sessions: AgentSessionSummary[] }
+  | { type: "chatgpt-account"; accounts: ChatGPTAccount[] };
 
 type ActiveTurn = {
   abortController: AbortController;
   done: Promise<void>;
 };
 
-const app = new AppController();
+const app = new AppController({ chatgpt: new ChatGPTAccountService() });
 
 let pendingSelection: PendingSelection | null = null;
 let activeTurn: ActiveTurn | null = null;
+let activeSignIn: ActiveTurn | null = null;
+let planAccount: ChatGPTAccount | undefined;
+let welcomeKey: string | undefined;
 let isExiting = false;
 
 await main();
@@ -47,14 +57,35 @@ async function main(): Promise<void> {
 
     const input = String(line);
 
+    if (activeSignIn) {
+      const command = input.trim();
+      if (command === "/cancel" || command === "/abort")
+        activeSignIn.abortController.abort();
+      else if (command === "/exit" || command === "/quit") await exitApp();
+      else
+        writeLine(
+          chalk.dim("ChatGPT sign-in is running. Use /cancel to stop it."),
+        );
+      continue;
+    }
+
     if (activeTurn) {
       await handleInputDuringActiveTurn(input);
       continue;
     }
 
     if (pendingSelection) {
+      if (
+        pendingSelection.type === "chatgpt-account" &&
+        input.trimStart().startsWith("/chatgpt")
+      ) {
+        pendingSelection = null;
+        await handleCommand(input.trim());
+        if (!isExiting && !activeSignIn) writePrompt();
+        continue;
+      }
       await handlePendingSelection(input.trim());
-      if (!isExiting && !activeTurn) writePrompt();
+      if (!isExiting && !activeTurn && !activeSignIn) writePrompt();
       continue;
     }
 
@@ -65,11 +96,16 @@ async function main(): Promise<void> {
 
     if (input.trimStart().startsWith("/")) {
       await handleCommand(input.trim());
-      if (!isExiting && !activeTurn) writePrompt();
+      if (!isExiting && !activeTurn && !activeSignIn) writePrompt();
       continue;
     }
 
     startChatTurn(input);
+  }
+  if (activeSignIn) {
+    isExiting = true;
+    activeSignIn.abortController.abort();
+    await activeSignIn.done;
   }
 }
 
@@ -105,6 +141,17 @@ async function handleCommand(command: string): Promise<void> {
       await startModelSelection();
       return;
     case "/session":
+      if (args[0] === "confirm") {
+        const result = app.confirmHistoryDestination();
+        if (Result.isErr(result)) writeError(result.error.message);
+        else
+          writeLine(
+            chalk.yellow(
+              "Confirmed: the next message may send this session’s history (including browser data) to the selected destination.",
+            ),
+          );
+        return;
+      }
       if (args[0] === "new") {
         startNewSession();
         return;
@@ -113,6 +160,9 @@ async function handleCommand(command: string): Promise<void> {
       return;
     case "/sessions":
       await printSessions();
+      return;
+    case "/chatgpt":
+      await handleChatGPT(args[0], args[1]);
       return;
     case "/abort":
       writeLine(chalk.dim("No active turn to abort."));
@@ -125,6 +175,129 @@ async function handleCommand(command: string): Promise<void> {
       writeLine(chalk.red(`Unknown command: ${command}`));
       writeLine(chalk.dim("Type /help for commands."));
   }
+}
+
+async function handleChatGPT(
+  action?: string,
+  argument?: string,
+): Promise<void> {
+  const status = await app.chatGPTStatus();
+  if (Result.isErr(status)) {
+    writeError(status.error.message, status.error.hint);
+    return;
+  }
+  const { accounts, active } = status.value;
+  planAccount = active;
+  if (action === "login" && (!argument || argument === "new")) {
+    startChatGPTSignIn(argument === "new" ? undefined : active?.key);
+    return;
+  }
+  if (action === "enable") {
+    startChatGPTSignIn(active?.key, !!active);
+    return;
+  }
+  if (action === "logout") {
+    const result = await app.signOutChatGPT();
+    if (Result.isErr(result))
+      writeError(result.error.message, result.error.hint);
+    else {
+      if (planAccount) planAccount = { ...planAccount, status: "signed-out" };
+      writeLine(chalk.green("Signed out of ChatGPT Plan locally."));
+      if (!result.value.confirmed)
+        writeLine(
+          chalk.yellow(
+            "Remote revocation could not be confirmed. Disconnect the app in ChatGPT settings.",
+          ),
+        );
+    }
+    return;
+  }
+  if (action === "retry") {
+    const result = await app.retryChatGPT();
+    if (Result.isErr(result)) writeError(result.error.message);
+    else
+      writeLine(
+        chalk.green(
+          "Plan requests are no longer paused. Use /model to select a model.",
+        ),
+      );
+    return;
+  }
+  if (action === "ok" && welcomeKey) {
+    const result = await app.acknowledgeChatGPT(welcomeKey);
+    if (Result.isErr(result)) writeError(result.error.message);
+    else welcomeKey = undefined;
+    return;
+  }
+  if (action) {
+    writeLine(
+      "Use /chatgpt, /chatgpt login [new], /chatgpt logout, /chatgpt enable, or /chatgpt retry.",
+    );
+    return;
+  }
+  writeLine(chalk.bold("ChatGPT Plan (preview)"));
+  const connection = app
+    .getProviders()
+    .find((provider) => provider.id === CHATGPT_PLAN)?.connectionResult;
+  const activeStatus =
+    active?.status === "connected" && connection && Result.isErr(connection)
+      ? "unavailable"
+      : active?.status;
+  writeLine(
+    `Active: ${active ? `${active.label} — ${activeStatus}` : "signed out"}`,
+  );
+  writeLine(`Manage usage: ${MANAGE_USAGE}`);
+  writeLine(
+    "Continue with ChatGPT: /chatgpt login. To add an account or workspace: /chatgpt login new.",
+  );
+  if (!accounts.length) return;
+  accounts.forEach((account, i) => {
+    writeLine(`${i + 1}. ${account.label} — ${account.status}`);
+  });
+  writeLine("Choose a saved account to reauthorize or /cancel.");
+  pendingSelection = { type: "chatgpt-account", accounts };
+}
+
+function startChatGPTSignIn(key?: string, reconsent = false): void {
+  const abortController = new AbortController();
+  writeLine(chalk.bold("Continue with ChatGPT"));
+  writeLine(chalk.dim("Waiting for sign-in. Use /cancel or Ctrl+C to stop."));
+  const done = (async () => {
+    try {
+      const result = await app.signInChatGPT(key, {
+        signal: abortController.signal,
+        reconsent,
+        manualOpen: (url) =>
+          writeLine(`Open this authorization link in your browser:\n${url}`),
+      });
+      if (Result.isErr(result)) {
+        writeError(result.error.message, result.error.hint);
+      } else if (result.value.status === "disabled") {
+        writeLine(
+          chalk.yellow(
+            "Signed in, but ChatGPT plan usage was not granted. Use /chatgpt enable or select another provider.",
+          ),
+        );
+      } else {
+        planAccount = result.value;
+        writeLine(
+          chalk.green(
+            `Connected: ${result.value.label}. Use /model to choose a model.`,
+          ),
+        );
+        if (!result.value.welcomed) {
+          welcomeKey = result.value.key;
+          writeLine(
+            `You're using your ChatGPT plan for eligible requests. Manage usage: ${MANAGE_USAGE}\nUse /chatgpt ok to acknowledge.`,
+          );
+        }
+      }
+    } finally {
+      activeSignIn = null;
+      writePrompt();
+    }
+  })();
+  activeSignIn = { abortController, done };
 }
 
 async function startModelSelection(): Promise<void> {
@@ -186,6 +359,17 @@ async function handlePendingSelection(input: string): Promise<void> {
     return;
   }
 
+  if (pending.type === "chatgpt-account") {
+    const account = getSelectedItem(input, pending.accounts);
+    if (!account) {
+      writeInvalidSelection();
+      return;
+    }
+    pendingSelection = null;
+    startChatGPTSignIn(account.key, account.status === "disabled");
+    return;
+  }
+
   await selectSession(input, pending.sessions);
 }
 
@@ -199,11 +383,16 @@ async function selectProvider(
     return;
   }
 
-  const modelsResult = app.getModels(provider.id);
+  const modelsResult = await app.prepareModels(provider.id);
   if (Result.isErr(modelsResult)) {
     pendingSelection = null;
     writeError(modelsResult.error.message, modelsResult.error.hint);
     return;
+  }
+
+  if (provider.id === CHATGPT_PLAN) {
+    const status = await app.chatGPTStatus();
+    if (Result.isOk(status)) planAccount = status.value.active;
   }
 
   if (modelsResult.value.length === 0) {
@@ -222,8 +411,8 @@ async function selectProvider(
 
     const price =
       model.pricing.input === 0 && model.pricing.output === 0
-        ? "(Free)"
-        : `($${model.pricing.input.toFixed(2)} / $${model.pricing.output.toFixed(2)} per 1M tokens)`;
+          ? "(Free)"
+          : `($${model.pricing.input.toFixed(2)} / $${model.pricing.output.toFixed(2)} per 1M tokens)`;
 
     writeLine(
       `${chalk.cyan(String(index + 1).padStart(2))}. ${model.displayName}${context} ${chalk.dim(price)}`,
@@ -280,6 +469,16 @@ async function selectSession(
   }
 
   clearScreen();
+  if (result.value.selectedModel.providerId === CHATGPT_PLAN) {
+    const status = await app.chatGPTStatus();
+    if (Result.isOk(status)) planAccount = status.value.active;
+    if (!app.getSelectedModel())
+      writeLine(
+        chalk.yellow(
+          "History is local. Activate the saved account and select an available model to continue.",
+        ),
+      );
+  }
   writeLine(chalk.bold(`Session: ${result.value.title}`));
   printCurrentModel();
   renderHistory(result.value);
@@ -474,7 +673,22 @@ function printHelp(): void {
   writeLine(`${chalk.cyan("/model current")} print the current model`);
   writeLine(`${chalk.cyan("/session")} select a saved session`);
   writeLine(`${chalk.cyan("/session new")} start a new session`);
+  writeLine(
+    `${chalk.cyan("/session confirm")} allow the selected destination to receive the open history`,
+  );
   writeLine(`${chalk.cyan("/sessions")} list saved sessions`);
+  writeLine(
+    `${chalk.cyan("/chatgpt")} show ChatGPT Plan accounts, status, and usage settings`,
+  );
+  writeLine(
+    `${chalk.cyan("/chatgpt login [new]")} continue with ChatGPT or add an account`,
+  );
+  writeLine(
+    `${chalk.cyan("/chatgpt logout")} sign out of the active ChatGPT account`,
+  );
+  writeLine(
+    `${chalk.cyan("/chatgpt enable | retry")} enable plan consent or resume after a usage limit`,
+  );
   writeLine(`${chalk.cyan("/abort")} abort the active turn`);
   writeLine(`${chalk.cyan("/cancel")} cancel a selection prompt`);
   writeLine(`${chalk.cyan("/exit")} exit the app`);
@@ -548,6 +762,8 @@ function writeInvalidSelection(): void {
 }
 
 function formatProviderStatus(provider: ProviderDescriptor): string {
+  if (provider.id === CHATGPT_PLAN && !provider.connectionResult)
+    return chalk.yellow("opt-in; use /chatgpt");
   if (!provider.connectionResult) return chalk.yellow("not initialized");
   if (Result.isOk(provider.connectionResult)) return chalk.green("connected");
   return chalk.red(provider.connectionResult.error.message);
@@ -590,7 +806,7 @@ function writeError(message: string, hint?: string): void {
 }
 
 function writePrompt(): void {
-  if (isExiting || activeTurn) return;
+  if (isExiting || activeTurn || activeSignIn) return;
 
   if (pendingSelection?.type === "model-provider") {
     write(chalk.cyan("provider # > "));
@@ -604,6 +820,11 @@ function writePrompt(): void {
 
   if (pendingSelection?.type === "session") {
     write(chalk.cyan("session # > "));
+    return;
+  }
+  
+  if (pendingSelection?.type === "chatgpt-account") {
+    write(chalk.cyan("account # > "));
     return;
   }
 
@@ -628,11 +849,19 @@ async function exitApp(): Promise<void> {
     activeTurn.abortController.abort("User exited");
     await activeTurn.done;
   }
+  if (activeSignIn) {
+    activeSignIn.abortController.abort();
+    await activeSignIn.done;
+  }
   writeLine(chalk.dim("Bye."));
   process.exit(0);
 }
 
 function handleSigint(): void {
+  if (activeSignIn) {
+    activeSignIn.abortController.abort();
+    return;
+  }
   if (activeTurn) {
     activeTurn.abortController.abort("Interrupted");
     writeLine(chalk.yellow("Aborting current turn..."));
