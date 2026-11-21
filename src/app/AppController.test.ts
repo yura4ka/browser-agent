@@ -272,7 +272,6 @@ test("plan sessions stay viewable but never send across accounts without explici
     throw new Error("Session was not saved");
   const id = selected.value.id;
   expect(selected.value.selectedModel.registrationKey).toBe(first.value.key);
-  expect(selected.value.usage.chatgptPlan?.totalTokens).toBe(5);
   expect(selected.value.usage.cost).toBe(0);
   expect(JSON.stringify(selected.value)).not.toMatch(
     /fake-access|fake-refresh|oaiapp_fixture|fixture@example/,

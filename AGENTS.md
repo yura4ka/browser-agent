@@ -1,11 +1,17 @@
 # Agent Rules
 
-- Use `zod` for schema validation
-
 Before finishing work, always run type and Biome checks.
 - Run `bunx tsc --noEmit`
 - Run `bun run check:write`
 - Run `bun run check`
+
+## Format and structure
+
+- Let Biome handle formatting and import order. Use `import type` for type-only imports, `@/` across subsystems, and relative imports within a subsystem.
+- Keep the main path easy to follow. Prefer early returns for guard cases over nested `if/else`. Validate untrusted input at the boundary with Zod; don’t repeat checks already guaranteed by validation or types.
+- Keep related code together. Split large files by responsibility, not just by length. Follow neighboring modules’ naming and layout; avoid helpers or wrappers that only add indirection.
+- Keep provider classes thin: wire the catalog and transport, and leave model discovery to the catalog, protocol mapping to the transport, and streamed message assembly to the builder. Keep shared contracts in `types.ts` and wire types with their provider.
+- Keep managers focused on coordination: `ProviderManager` owns registration and selection; `ToolManager` validates arguments, dispatches calls, and normalizes results. Leave implementation details to providers and tools.
 
 ## Bun
 
