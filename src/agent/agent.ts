@@ -193,7 +193,7 @@ export class Agent {
         tools: this.tools.getTools(),
         sessionId: deps.session.id,
       },
-      { config: deps.config },
+      { config: deps.config, registrationKey: selected.registrationKey },
       deps.signal,
     )) {
       if (event.type === "text-delta") {
@@ -226,7 +226,7 @@ export class Agent {
 
   private addUsage(session: AgentSession, usage: LLMUsage): void {
     session.usage = {
-      cost: session.usage.cost + usage.cost,
+      cost: session.usage.cost + (usage?.cost ?? 0),
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       totalTokens: usage.totalTokens,

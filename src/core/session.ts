@@ -51,6 +51,7 @@ export const agentSessionSchema = z.strictObject({
   selectedModel: z.strictObject({
     providerId: z.string(),
     modelId: z.string(),
+    registrationKey: z.uuid().optional(),
   }),
   turns: z.array(agentTurnSchema),
   usage: agentUsageSchema.default(EMPTY_AGENT_USAGE),

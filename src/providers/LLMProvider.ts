@@ -13,6 +13,15 @@ import type {
 export abstract class LLMProvider {
   protected connectionResultValue: Result<void> | null = null;
   protected models: ModelDescriptor[] = [];
+  private revision = 0;
+  registrationKey?: string;
+
+  invalidate(): void {
+    this.revision++;
+    this.models = [];
+    this.connectionResultValue = null;
+    this.registrationKey = undefined;
+  }
 
   protected constructor(
     protected readonly identity: ProviderIdentity,
@@ -41,7 +50,10 @@ export abstract class LLMProvider {
   }
 
   async init(deps: ProviderDeps): Promise<void> {
+    this.invalidate();
+    const revision = this.revision;
     const modelsResult = await this.catalog.discoverModels(deps);
+    if (revision !== this.revision) return;
     if (Result.isErr(modelsResult)) {
       this.connectionResultValue = modelsResult;
       return;
@@ -52,6 +64,7 @@ export abstract class LLMProvider {
       return;
     }
     this.models = modelsResult.value;
+    this.registrationKey = deps.registrationKey;
     this.connectionResultValue = Result.Ok(undefined);
   }
 

@@ -11,6 +11,8 @@ export type ProviderIdentity = {
 
 export type ProviderDeps = {
   config: UserConfig;
+  registrationKey?: string;
+  catalogSignal?: AbortSignal;
 };
 
 export type ProviderDescriptor = ProviderIdentity & {
@@ -41,7 +43,11 @@ export type ModelDescriptor = {
   };
 };
 
-export type SelectedModel = { provider: LLMProvider; model: ModelDescriptor };
+export type SelectedModel = {
+  provider: LLMProvider;
+  model: ModelDescriptor;
+  registrationKey?: string;
+};
 
 export type LLMUsage = {
   cost: number;
@@ -55,7 +61,17 @@ export type LLMStreamEvent =
   | { type: "tool-call-delta"; call: ToolCallDelta }
   | { type: "message-complete"; message: AssistantMessage; usage?: LLMUsage }
   | { type: "sse-comment"; content: string }
-  | { type: "error"; error: string };
+  | {
+      type: "error";
+      error: string;
+      details?: {
+        kind: string;
+        status?: number;
+        code?: string;
+        parameter?: string;
+        requestId?: string;
+      };
+    };
 
 export type ToolCallDelta = {
   index: number;
