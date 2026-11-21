@@ -155,6 +155,52 @@ function createAgent(providers: ProviderManager, tools = new ToolManager()) {
   );
 }
 
+test("interrupted partial tool calls never execute and user cancellation is saved as aborted", async () => {
+  for (const abort of [false, true]) {
+    const controller = new AbortController();
+    const { providers } = await createProviderManager([
+      [
+        { type: "text-delta", text: "partial" },
+        {
+          type: "tool-call-delta",
+          call: {
+            index: 0,
+            callId: "call",
+            toolNamePart: "fixture",
+            argsPart: "{}",
+          },
+        },
+        { type: "error", error: "Stream interrupted" },
+      ],
+    ]);
+    let executions = 0;
+    const tools = new ToolManager().addTool(
+      createTool({
+        name: "fixture",
+        description: "Unit test",
+        argsSchema: z.object({}),
+        execute: async () => {
+          executions++;
+          return Result.Ok({ type: "text", content: "fixture" });
+        },
+      }),
+    );
+    const session = createSession();
+    const events = createAgent(providers, tools).runTurn(
+      { config, session, signal: controller.signal },
+      userMessage("test"),
+    );
+    expect((await events.next()).value).toEqual({
+      type: "assistant-text",
+      text: "partial",
+    });
+    if (abort) controller.abort();
+    expect(await collectEvents(events)).toMatchObject([{ type: "error" }]);
+    expect(executions).toBe(0);
+    expect(session.turns[0].status).toBe(abort ? "aborted" : "failed");
+  }
+});
+
 describe("Agent", () => {
   test("streams a completed assistant response and appends a turn", async () => {
     const session = createSession();

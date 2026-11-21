@@ -1,6 +1,7 @@
 import type { UserConfig } from "@/core/config";
 import type { ToolCall } from "@/core/messages";
 import type { AgentSession } from "@/core/session";
+import type { SelectedModel } from "@/providers/types";
 import type { ToolResult } from "@/tools/types";
 
 export type AgentDeps = {
@@ -8,6 +9,7 @@ export type AgentDeps = {
   config: UserConfig;
   signal?: AbortSignal;
   maxIterations?: number;
+  selectedModel?: SelectedModel;
 };
 
 export type AgentEvent =

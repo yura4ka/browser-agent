@@ -4,6 +4,7 @@ import type { ConfigService } from "@/core/config";
 import type { UserMessage } from "@/core/messages";
 import { Result } from "@/core/Result";
 import type { AgentSession } from "@/core/session";
+import type { SelectedModel } from "@/providers/types";
 import type { SessionStore } from "@/storage/SessionStore";
 
 type ChatAgent = Pick<Agent, "runTurn">;
@@ -20,7 +21,7 @@ export class ChatService {
     sessionId: string,
     text: string,
     signal?: AbortSignal,
-    options: { maxIterations?: number } = {},
+    options: { maxIterations?: number; selectedModel?: SelectedModel } = {},
   ): AsyncGenerator<AgentEvent> {
     const sessionResult = await this.sessions.getSession(sessionId);
     if (Result.isErr(sessionResult)) {
@@ -45,6 +46,7 @@ export class ChatService {
       config: this.config.get(),
       signal,
       maxIterations: options.maxIterations,
+      selectedModel: options.selectedModel,
     };
 
     const initialTurnCount = session.turns.length;

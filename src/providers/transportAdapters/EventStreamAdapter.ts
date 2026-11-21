@@ -52,6 +52,7 @@ export abstract class EventStreamAdapter implements ProviderTransport {
     const decoder = new TextDecoder();
     const parser = this.createParser({
       enqueue: (event) => {
+        if (hasTerminated || signal?.aborted) return;
         if (event.type === "error" || event.type === "message-complete") {
           hasTerminated = true;
         }
@@ -65,26 +66,37 @@ export abstract class EventStreamAdapter implements ProviderTransport {
     };
 
     const reader = body.getReader();
+    const cancel = () => {
+      void reader.cancel().catch(() => undefined);
+    };
+    signal?.addEventListener("abort", cancel, { once: true });
+    if (signal?.aborted) cancel();
     let interruptionError: string | null = null;
+    let terminalDelivered = false;
 
     try {
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done || signal?.aborted) break;
 
         parser.feed(decoder.decode(value, { stream: true }));
         for (const event of drainQueue()) {
-          yield event;
+          if (!signal?.aborted) {
+            terminalDelivered =
+              event.type === "error" || event.type === "message-complete";
+            yield event;
+          }
         }
 
         if (hasTerminated) {
-          await reader.cancel();
           break;
         }
       }
     } catch (error) {
       interruptionError = this.formatStreamInterruption(error);
     } finally {
+      signal?.removeEventListener("abort", cancel);
+      await reader.cancel().catch(() => undefined);
       reader.releaseLock();
     }
 
@@ -101,10 +113,14 @@ export abstract class EventStreamAdapter implements ProviderTransport {
     }
 
     for (const event of drainQueue()) {
-      yield event;
+      if (!signal?.aborted) {
+        terminalDelivered =
+          event.type === "error" || event.type === "message-complete";
+        yield event;
+      }
     }
 
-    if (!hasTerminated) {
+    if (!terminalDelivered) {
       yield {
         type: "error",
         error:

@@ -29,7 +29,7 @@ export class Agent {
     deps: AgentDeps,
     message: UserMessage,
   ): AsyncGenerator<AgentEvent> {
-    const selected = this.providers.selected;
+    const selected = deps.selectedModel ?? this.providers.selected;
     if (!selected) {
       yield { type: "error", error: "No model selected" };
       return;
@@ -64,16 +64,21 @@ export class Agent {
           messages,
         );
 
-        if (Result.isErr(assistantResult)) {
+        if (Result.isErr(assistantResult) || deps.signal?.aborted) {
+          const aborted = deps.signal?.aborted;
+          const error =
+            !aborted && Result.isErr(assistantResult)
+              ? assistantResult.error.message
+              : "Aborted";
           this.appendTurn(
             deps.session,
             selected,
             startTime,
             turnMessages,
-            "failed",
-            assistantResult.error.message,
+            aborted ? "aborted" : "failed",
+            error,
           );
-          yield { type: "error", error: assistantResult.error.message };
+          yield { type: "error", error };
           return;
         }
 
@@ -113,6 +118,7 @@ export class Agent {
           }
 
           yield { type: "tool-call", call: toolCall };
+          deps.signal?.throwIfAborted();
 
           const toolResult = await this.tools.execute(
             {
